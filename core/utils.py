@@ -41,8 +41,8 @@ def parse_datetime(datetime_str: str, week: str = None) -> str:
         # 如果指定了星期几
         if week:
             week_map = {
-                '周日': 0, '周一': 1, '周二': 2, '周三': 3, 
-                '周四': 4, '周五': 5, '周六': 6
+                '周日': 6, '周一': 0, '周二': 1, '周三': 2, 
+                '周四': 3, '周五': 4, '周六': 5
             }
             if week not in week_map:
                 raise ValueError("星期格式错误，可选值：周日,周一,周二,周三,周四,周五,周六")

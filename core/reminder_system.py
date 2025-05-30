@@ -222,14 +222,11 @@ class ReminderSystem:
     async def add_reminder(self, event: AstrMessageEvent, text: str, time_str: str, week: str = None, repeat: str = None, holiday_type: str = None, is_task: bool = False):
         '''添加提醒或任务'''
         try:
-            raw_msg_origin = week if week else event.unified_msg_origin
-            item_type = "任务" if is_task else "提醒"
-            
-            # 获取用户ID和昵称的安全方法
+            # 获取用户ID
             creator_id = None
             creator_name = "用户"
             
-            # 尝试多种方式获取用户ID
+            # 尝试多种方式获取用户ID和昵称
             if hasattr(event, 'get_user_id'):
                 creator_id = event.get_user_id()
             elif hasattr(event, 'get_sender_id'):
@@ -254,123 +251,72 @@ class ReminderSystem:
                     creator_name = sender.nickname or creator_name
             
             # 使用 tools.get_session_id 获取正确的会话ID
-            msg_origin = self.tools.get_session_id(raw_msg_origin, creator_id)
+            msg_origin = self.tools.get_session_id(event.unified_msg_origin, creator_id)
             
-            # 初始化该消息来源的提醒列表（如果不存在）
-            if msg_origin not in self.reminder_data:
-                self.reminder_data[msg_origin] = []
-            
-            week_map = {
-                '周一': 0, '周二': 1, '周三': 2, '周四': 3, 
-                '周五': 4, '周六': 5, '周日': 6
-            }
-            
-            # 支持"明天"和"后天"关键词
-            if week == "明天":
-                now = datetime.now()
-                dt = now.replace(hour=8, minute=0, second=0, microsecond=0) + timedelta(days=1)
-                datetime_str = dt.strftime("%Y-%m-%d %H:%M")
-                week = None  # 不再走 week_map
-            elif week == "后天":
-                now = datetime.now()
-                dt = now.replace(hour=8, minute=0, second=0, microsecond=0) + timedelta(days=2)
-                datetime_str = dt.strftime("%Y-%m-%d %H:%M")
-                week = None  # 不再走 week_map
-            else:
+            # 解析时间
+            try:
                 datetime_str = parse_datetime(time_str, week)
-                dt = datetime.strptime(datetime_str, "%Y-%m-%d %H:%M")
+            except ValueError as e:
+                return str(e)
             
-            if week and week not in week_map:
-                if week.lower() in ["每天", "每周", "每月", "每年"] or week.lower() in ["workday", "holiday"]:
-                    if repeat:
-                        holiday_type = repeat
-                        repeat = week
-                    else:
-                        repeat = week
-                    week = None
-                    logger.info(f"已将'{week}'识别为重复类型，默认使用今天作为开始日期")
-                else:
-                    return "星期格式错误，可选值：周日,周一,周二,周三,周四,周五,周六"
-
-            if repeat:
-                parts = repeat.split()
-                if len(parts) == 2 and parts[1] in ["workday", "holiday"]:
-                    repeat = parts[0]
-                    holiday_type = parts[1]
-
-            repeat_types = ["每天", "每周", "每月", "每年"]
-            if repeat and repeat.lower() not in repeat_types:
-                return "重复类型错误，可选值：每天,每周,每月,每年"
-                
-            holiday_types = ["workday", "holiday"]
-            if holiday_type and holiday_type.lower() not in holiday_types:
-                return "节假日类型错误，可选值：workday(仅工作日执行)，holiday(仅法定节假日执行)"
-
-            if week:
-                # 修正每周重复的日期推算逻辑
-                now = datetime.now()
-                current_weekday = now.weekday()
-                target_weekday = week_map[week]
-                # 先用今天的日期和目标时间组合
-                dt_candidate = now.replace(hour=dt.hour, minute=dt.minute, second=0, microsecond=0)
-                days_ahead = target_weekday - current_weekday
-                if days_ahead < 0 or (days_ahead == 0 and now.time() > dt.time()):
-                    days_ahead += 7
-                dt = dt_candidate + timedelta(days=days_ahead)
-                datetime_str = dt.strftime("%Y-%m-%d %H:%M")  # 更新 datetime_str
+            # 处理重复类型
+            if repeat == "每天" and week:
+                # 如果同时指定了每天和星期几，优先使用每周
                 repeat = "每周"
+                logger.info(f"检测到同时指定了每天和星期几，自动调整为每周重复")
             
-            # 处理重复类型和节假日类型的组合
-            final_repeat = repeat or "none"
-            if repeat and holiday_type:
-                final_repeat = f"{repeat}_{holiday_type}"
-            
+            # 构建提醒数据
             reminder = {
                 "text": text,
                 "datetime": datetime_str,
                 "user_name": creator_name,
-                "repeat": final_repeat,
+                "repeat": repeat or "none",
                 "creator_id": creator_id,
                 "creator_name": creator_name,
                 "is_task": is_task
             }
             
-            # 添加提醒到数据中
+            # 如果指定了节假日类型，添加到重复类型中
+            if holiday_type:
+                reminder["repeat"] = f"{repeat}_{holiday_type}"
+            
+            # 添加到提醒数据中
+            if msg_origin not in self.reminder_data:
+                self.reminder_data[msg_origin] = []
             self.reminder_data[msg_origin].append(reminder)
             
-            # 设置定时任务
-            job_result = self.scheduler_manager.add_job(msg_origin, reminder, dt)
-            if not job_result:
-                logger.error("添加定时任务失败")
-                return f"设置{item_type}失败：无法添加定时任务"
-            
             # 保存提醒数据
-            save_result = await save_reminder_data(self.data_file, self.reminder_data)
-            if not save_result:
-                logger.error("保存提醒数据失败")
-                return f"设置{item_type}失败：无法保存数据"
+            if not await save_reminder_data(self.data_file, self.reminder_data):
+                return "保存提醒数据失败"
             
-            # 重新加载提醒数据
-            self.reminder_data = load_reminder_data(self.data_file)
+            # 添加定时任务
+            dt = datetime.strptime(datetime_str, "%Y-%m-%d %H:%M")
+            if not self.scheduler_manager.add_job(msg_origin, reminder, dt):
+                return "添加定时任务失败"
             
-            # 构建提示信息
+            # 获取重复类型的中文描述
             repeat_str = self._get_repeat_str(repeat, holiday_type)
             
+            # 使用AI生成回复
             provider = self.context.get_using_provider()
             if provider:
-                prompt = f"用户设置了一个{item_type}，内容是'{text}'，时间是{datetime_str}{repeat_str}。请用自然的语言确认设置成功。直接发出对话内容，就是你说的话，不要有其他的背景描述。"
-                response = await provider.text_chat(
-                    prompt=prompt,
-                    session_id=event.session_id,
-                    contexts=[]
-                )
-                return response.completion_text
+                try:
+                    prompt = f'用户设置了一个{"任务" if is_task else "提醒"}，内容为"{text}"，时间为{datetime_str}，{repeat_str}。请用自然的语言回复用户，确认设置成功。'
+                    response = await provider.text_chat(
+                        prompt=prompt,
+                        session_id=event.session_id,
+                        contexts=[]
+                    )
+                    return response.completion_text
+                except Exception as e:
+                    logger.error(f"在add_reminder中调用LLM时出错: {str(e)}")
+                    return f'好的，您的"{text}"已设置成功，时间为{datetime_str}，{repeat_str}。'
             else:
-                return f"已设置{item_type}:\n内容: {text}\n时间: {datetime_str}{repeat_str}\n\n使用 /si 列表 查看所有{item_type}"
-            
+                return f'好的，您的"{text}"已设置成功，时间为{datetime_str}，{repeat_str}。'
+                
         except Exception as e:
-            logger.error(f"设置{item_type}时出错: {str(e)}")
-            return f"设置{item_type}时出错：{str(e)}"
+            logger.error(f"添加提醒时出错: {str(e)}")
+            return f"添加提醒时出错：{str(e)}"
 
     def _get_repeat_str(self, repeat, holiday_type):
         if not repeat:

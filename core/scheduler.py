@@ -410,11 +410,19 @@ class ReminderScheduler:
                         session_id=target_session_id,
                         contexts=contexts
                     )
-                    message_chain = MessageChain([Plain(response.completion_text)])
+                    if response.completion_text:
+                        message_chain = MessageChain([Plain(response.completion_text)])
+                    else:
+                        logger.error("response.completion_text is empty or None")
+                        message_chain = MessageChain([Plain(f"⏰ 提醒：{task_text}")])
                 except Exception as e:
                     logger.error(f"生成消息时出错: {str(e)}")
                     message_chain = MessageChain([Plain(f"⏰ 提醒：{task_text}")])
             else:
+                message_chain = MessageChain([Plain(f"⏰ 提醒：{task_text}")])
+            
+            if not message_chain:
+                logger.error("message_chain is empty after creation")
                 message_chain = MessageChain([Plain(f"⏰ 提醒：{task_text}")])
             
             # 发送消息
@@ -447,14 +455,29 @@ class ReminderScheduler:
                         logger.error(f"删除一次性{'任务' if is_task else '提醒'}时出错: {str(e)}")
             except Exception as e:
                 logger.error(f"发送消息失败: {str(e)}")
-                send_result = await event.plain_result(message_chain[0].text)
+                if isinstance(message_chain, MessageChain):
+                    # 获取 MessageChain 中的消息内容
+                    try:
+                        plain_text = message_chain.get_plain_text() or f"⏰ 提醒：{task_text}"
+                    except:
+                        plain_text = f"⏰ 提醒：{task_text}"
+                    # 直接使用 send_message 而不是 plain_result
+                    send_result = await self.context.send_message(target_session_id, MessageChain([Plain(plain_text)]))
+                else:
+                    logger.error("message_chain is not a MessageChain object")
+                    send_result = await self.context.send_message(target_session_id, MessageChain([Plain(f"⏰ 提醒：{task_text}")]))
                 
                 # 更新对话历史
                 if curr_cid and conversation:
                     try:
                         new_contexts = contexts.copy()
                         new_contexts.append({"role": "system", "content": f"系统在 {current_time} {'执行了任务' if is_task else '触发了提醒'}: {task_text}"})
-                        new_contexts.append({"role": "assistant", "content": message_chain[0].text})
+                        # 获取 MessageChain 中的消息内容
+                        try:
+                            plain_text = message_chain.get_plain_text() if isinstance(message_chain, MessageChain) else f"⏰ 提醒：{task_text}"
+                        except:
+                            plain_text = f"⏰ 提醒：{task_text}"
+                        new_contexts.append({"role": "assistant", "content": plain_text})
                         await self.context.conversation_manager.update_conversation(
                             target_session_id, 
                             curr_cid, 
@@ -482,7 +505,17 @@ class ReminderScheduler:
             job_id = f"reminder_{msg_origin}_{timestamp}"
 
             # 根据重复类型设置不同的触发器
-            if reminder.get("repeat") == "每天":
+            if reminder.get("repeat") == "none":
+                self.scheduler.add_job(
+                    self._reminder_callback,
+                    'date',
+                    args=[msg_origin, reminder],
+                    run_date=dt,
+                    misfire_grace_time=60,
+                    id=job_id
+                )
+                logger.info(f"添加一次性提醒: {reminder['text']} 时间: {dt.strftime('%Y-%m-%d %H:%M')} ID: {job_id}")
+            elif reminder.get("repeat") == "每天":
                 self.scheduler.add_job(
                     self._reminder_callback,
                     'cron',

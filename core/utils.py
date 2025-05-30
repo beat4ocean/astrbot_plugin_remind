@@ -51,7 +51,8 @@ def parse_datetime(datetime_str: str, week: str = None) -> str:
             current_weekday = dt.weekday()
             target_weekday = week_map[week]
             days_ahead = target_weekday - current_weekday
-            if days_ahead <= 0:  # 如果目标日期已经过了，就设置为下周
+            # 修正逻辑：只有在今天时间已过才跳到下周，否则就是本周
+            if days_ahead < 0 or (days_ahead == 0 and dt <= today):
                 days_ahead += 7
             dt = dt + datetime.timedelta(days=days_ahead)
         # 如果没有指定星期几，且时间已过，设置为明天

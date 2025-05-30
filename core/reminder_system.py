@@ -295,7 +295,7 @@ class ReminderSystem:
                 return "添加定时任务失败"
             
             # 获取重复类型的中文描述
-            repeat_str = self._get_repeat_str(repeat, holiday_type)
+            repeat_str = self._get_repeat_str(repeat, holiday_type, week)
             
             # 使用AI生成回复
             provider = self.context.get_using_provider()
@@ -318,7 +318,7 @@ class ReminderSystem:
             logger.error(f"添加提醒时出错: {str(e)}")
             return f"添加提醒时出错：{str(e)}"
 
-    def _get_repeat_str(self, repeat, holiday_type):
+    def _get_repeat_str(self, repeat, holiday_type, week):
         if not repeat:
             return "一次性"
             
@@ -330,14 +330,14 @@ class ReminderSystem:
         }.get(repeat, "")
         
         if not holiday_type:
-            return f"{base_str}重复"
+            return f"{base_str}重复，{week}"
             
         holiday_str = {
             "workday": "仅工作日",
             "holiday": "仅法定节假日"
         }.get(holiday_type, "")
         
-        return f"{base_str}重复，{holiday_str}"
+        return f"{base_str}重复，{holiday_str}，{week}"
 
     def get_help_text(self):
         return "🌟 Angus 插件合集帮助：\n\n" + \

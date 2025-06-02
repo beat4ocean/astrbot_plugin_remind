@@ -8,6 +8,7 @@
 ![Stars](https://img.shields.io/github/stars/Angus-fw/astrbot_plugin_angus?style=social)
 
 > ✨ 为 AstrBot 开发的多功能插件合集，集成智能提醒、主动对话、涩图、服务器监控等实用功能。
+> ✨ 已适配平台QQ(aiocqhttp),微信(wechatpadpro),微信公众平台(weixin_official_account)
 
 [English](README.md) | [简体中文](README_zh.md)
 

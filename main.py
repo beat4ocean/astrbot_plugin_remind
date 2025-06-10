@@ -93,20 +93,21 @@ class Main(Star):
                            repeat_type: str = None, holiday_type: str = None):
         '''手动添加提醒'''
         result = await self.reminder_system.add_reminder(event, text, time_str, week, repeat_type, holiday_type, False)
-        yield event.plain_result(result)
+        return result
+
 
     @si.command("添加任务")
     async def add_task(self, event: AstrMessageEvent, text: str, time_str: str, week: str = None,
                        repeat_type: str = None, holiday_type: str = None):
         '''手动添加任务'''
         result = await self.reminder_system.add_reminder(event, text, time_str, week, repeat_type, holiday_type, True)
-        yield event.plain_result(result)
+        return result
 
     @si.command("help")
     async def show_help(self, event: AstrMessageEvent):
         '''显示帮助信息'''
         help_text = self.reminder_system.get_help_text()
-        yield event.plain_result(help_text)
+        return help_text
 
     # ========== 命令行结束 ==========
 

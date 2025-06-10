@@ -334,6 +334,7 @@ class ReminderScheduler:
 
     async def _reminder_callback(self, unified_msg_origin: str, reminder: dict):
         '''提醒回调函数'''
+        global message_chain
         try:
             # 获取当前时间
             current_time = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
@@ -359,10 +360,11 @@ class ReminderScheduler:
                     if conversation and conversation.history:
                         try:
                             contexts = json.loads(conversation.history)
+                            logger.info(f"提醒模式：用户对话ID: {curr_cid}, 上下文长度: {len(contexts)}")
                         except json.JSONDecodeError:
                             contexts = []
             except Exception as e:
-                logger.error(f"获取对话上下文失败: {str(e)}")
+                logger.error(f"提醒模式：获取对话上下文失败: {str(e)}")
                 contexts = []
 
             from astrbot.api.platform import AstrBotMessage, PlatformMetadata, MessageType, MessageMember
@@ -409,29 +411,32 @@ class ReminderScheduler:
             else:
                 target_session_id = unified_msg_origin
 
-            # 准备消息内容
-            if is_task:
-                prompt = f"现在时间是 {current_time}，请执行以下任务：{task_text}\n\n请用自然的语言回复，就像你在和用户对话一样。"
-            else:
-                prompt = f"现在时间是 {current_time}，请用自然的语言提醒用户：{task_text}\n\n请用自然的语言回复，就像你在和用户对话一样。"
-
             # 获取AI提供者并生成回复
             provider = self.context.get_using_provider()
             if provider:
+                if is_task:
+                    prompt = (f"现在是 {current_time}，请直接执行以下预设任务：{task_text}\n\n"
+                              "请注意：不要提及这是一个预设任务或提醒，你的回复应该像用户刚刚发出了这个请求一样自然。")
+                else:
+                    prompt = (f"现在是 {current_time}，请用自然的语气提醒用户以下事项：{task_text}\n\n"
+                              "请注意：你的回复应该简短、友好，就像一个贴心的助手在和用户对话。")
+
                 try:
                     response = await provider.text_chat(
-                        prompt=prompt,
                         session_id=target_session_id,
-                        contexts=contexts
+                        contexts=contexts,
+                        prompt=prompt,
                     )
+
                     if response.completion_text:
                         message_chain = MessageChain([Plain(response.completion_text)])
                     else:
-                        logger.error("response.completion_text is empty or None")
+                        logger.warning("LLM未返回文本。")
                         message_chain = MessageChain([Plain(f"⏰ 提醒：{task_text}")])
                 except Exception as e:
                     logger.error(f"生成消息时出错: {str(e)}")
                     message_chain = MessageChain([Plain(f"⏰ 提醒：{task_text}")])
+
             else:
                 message_chain = MessageChain([Plain(f"⏰ 提醒：{task_text}")])
 
@@ -441,6 +446,7 @@ class ReminderScheduler:
 
             # 发送消息
             try:
+                logger.info(f"开始发送消息: {message_chain}")
                 send_result = await self.context.send_message(target_session_id, message_chain)
                 logger.info(f"消息发送成功: {send_result}")
 
@@ -476,11 +482,16 @@ class ReminderScheduler:
                     except:
                         plain_text = f"⏰ 提醒：{task_text}"
                     # 直接使用 send_message 而不是 plain_result
+                    logger.info(f"开始重新发送消息: {plain_text}")
                     send_result = await self.context.send_message(target_session_id, MessageChain([Plain(plain_text)]))
                 else:
                     logger.error("message_chain is not a MessageChain object")
                     send_result = await self.context.send_message(target_session_id,
                                                                   MessageChain([Plain(f"⏰ 提醒：{task_text}")]))
+                if send_result:
+                    logger.info(f"重新发送消息成功: {send_result}")
+                else:
+                    logger.error(f"重新发送消息失败: {send_result}")
 
                 # 更新对话历史
                 if curr_cid and conversation:

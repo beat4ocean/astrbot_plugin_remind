@@ -131,15 +131,7 @@ def load_reminder_data(data_file: str) -> dict:
 
 
 async def save_reminder_data(data_file: str, reminder_data: dict) -> bool:
-    '''保存提醒数据
-    
-    Args:
-        data_file: 数据文件路径
-        reminder_data: 提醒数据字典
-        
-    Returns:
-        bool: 保存是否成功
-    '''
+    '''保存提醒数据'''
     try:
         # 确保数据目录存在
         data_dir = os.path.dirname(data_file)
@@ -153,7 +145,7 @@ async def save_reminder_data(data_file: str, reminder_data: dict) -> bool:
             reminder_data[group] = [
                 r for r in reminder_data[group]
                 if "datetime" in r and r["datetime"] and  # 确保datetime字段存在且不为空
-                   not (r.get("repeat", "none") in ["不重复", "none"] and is_outdated(r))  # 只清理过期的一次性任务
+                   not (r.get("repeat", "none") == "none" and is_outdated(r))  # 只清理过期的一次性任务
             ]
             # 如果群组没有任何提醒了，删除这个群组的条目
             if not reminder_data[group]:
@@ -179,10 +171,10 @@ async def save_reminder_data(data_file: str, reminder_data: dict) -> bool:
 # 法定节假日相关功能
 class HolidayManager:
     def __init__(self):
-        # 使用 StarTools 获取数据目录
-        data_dir = StarTools.get_data_dir("astrbot_plugin_remind")
-        os.makedirs(data_dir, exist_ok=True)
-        self.holiday_cache_file = os.path.join(data_dir, "holiday_cache.json")
+        # 确保目录存在
+        data_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))), "data")
+        os.makedirs(os.path.join(data_dir, "holiday_data"), exist_ok=True)
+        self.holiday_cache_file = os.path.join(data_dir, "holiday_data", "holiday_cache.json")
         self.holiday_data = self._load_holiday_data()
 
     def _load_holiday_data(self) -> dict:

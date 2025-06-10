@@ -41,10 +41,11 @@ class Main(Star):
         self.enable_setu = self.config.get("enable_setu", True)
         self.enable_server_status = self.config.get("enable_server_status", True)
 
-        # 初始化数据文件路径
-        data_dir = StarTools.get_data_dir("astrbot_plugin_remind")
-        os.makedirs(data_dir, exist_ok=True)
-        self.data_file = os.path.join(data_dir, "reminder_data.json")
+        # 使用data目录下的数据文件，而非插件自身目录
+        data_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))), "data")
+        # 确保目录存在
+        os.makedirs(os.path.join(data_dir, "reminds"), exist_ok=True)
+        self.data_file = os.path.join(data_dir, "reminds", "remind_data.json")
 
         # 加载提醒数据
         self.reminder_data = load_reminder_data(self.data_file)

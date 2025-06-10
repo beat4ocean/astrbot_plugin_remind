@@ -349,7 +349,7 @@ class ReminderTools:
                 if repeat_type:
                     # 获取基础重复类型（去除 holiday_type 部分）
                     base_repeat = reminder.get("repeat", "").split("_")[0]
-                    if base_repeat != repeat_type.lower():
+                    if base_repeat.lower() != repeat_type.lower():
                         match = False
 
                 # 检查具体日期

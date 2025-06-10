@@ -1,5 +1,5 @@
 import os
-from datetime import datetime
+import datetime
 
 from apscheduler.schedulers.base import JobLookupError
 from astrbot.api import logger
@@ -22,7 +22,7 @@ class ReminderSystem:
         # 使用StarTools获取数据目录
         if data_dir is None:
             data_dir = StarTools.get_data_dir("astrbot_plugin_remind")
-        self.data_file = os.path.join(data_dir, "astrbot_plugin_remind.json")
+        self.data_file = os.path.join(data_dir, "remind_data.json")
 
         # 初始化数据存储
         self.reminder_data = load_reminder_data(self.data_file)
@@ -45,10 +45,10 @@ class ReminderSystem:
             elif hasattr(event.message_obj, 'sender'):
                 creator_id = getattr(event.message_obj.sender, 'user_id', None)
 
-            raw_msg_origin = week if week else event.unified_msg_origin
-
+            # logger.info(f"获取用户ID: {creator_id}")
             # 使用 tools.get_session_id 获取正确的会话ID
-            msg_origin = self.tools.get_session_id(raw_msg_origin, creator_id)
+            msg_origin = self.tools.get_session_id(event.unified_msg_origin, creator_id)
+            # logger.info(f"获取会话ID: {msg_origin}")
 
             # 重新加载提醒数据
             self.reminder_data = load_reminder_data(self.data_file)
@@ -56,6 +56,7 @@ class ReminderSystem:
             # 获取所有相关的提醒
             reminders = []
             for key in self.reminder_data:
+                # logger.info(f"检查会话ID: {key}")
                 # 检查是否是当前用户的所有提醒
                 if key.endswith(f"_{creator_id}") or key == msg_origin:
                     reminders.extend(self.reminder_data[key])
@@ -258,6 +259,7 @@ class ReminderSystem:
             # 解析时间
             try:
                 datetime_str = parse_datetime(time_str, week)
+                dt = datetime.datetime.strptime(datetime_str, "%Y-%m-%d %H:%M")
             except ValueError as e:
                 return event.plain_result(str(e))
 
@@ -270,13 +272,12 @@ class ReminderSystem:
                 if week.lower() in ["daily", "weekly", "monthly", "yearly"] or week.lower() in ["workday", "holiday"]:
                     # week参数实际上可能是repeat参数
                     if repeat_type:
-                        # 如果repeat也存在，则将week和repeat作为组合
-                        holiday_type = repeat_type  # 将原来的repeat视为holiday_type
-                        repeat_type = week  # 将原来的week视为repeat
+                        # 如果repeat_type也存在，则将week和repeat_type作为组合
+                        holiday_type, repeat_type = repeat_type, week
                     else:
                         repeat_type = week  # 将原来的week视为repeat
-                    week = None  # 清空week，使用默认值（今天）
                     logger.info(f"已将'{week}'识别为重复类型，默认使用今天作为开始日期")
+                    week = None  # 清空week，使用默认值（今天）
                 else:
                     return event.plain_result("星期格式错误，可选值：mon,tue,wed,thu,fri,sat,sun")
 
@@ -299,16 +300,16 @@ class ReminderSystem:
                 return event.plain_result("节假日类型错误，可选值：workday(仅工作日执行)，holiday(仅法定节假日执行)")
 
             # 处理重复类型和节假日类型的组合
-            final_repeat = repeat_type.lower() if repeat_type else "none"
+            final_repeat_type = repeat_type.lower() if repeat_type else "none"
             if repeat_type and holiday_type:
-                final_repeat = f"{repeat_type.lower()}_{holiday_type.lower()}"
+                final_repeat_type = f"{repeat_type.lower()}_{holiday_type.lower()}"
 
             # 构建提醒数据
             reminder = {
                 "text": text,
-                "datetime": datetime_str,
-                "user_name": creator_name,
-                "repeat": final_repeat,
+                "datetime": dt.strftime("%Y-%m-%d %H:%M"),
+                "user_name": creator_id,
+                "repeat": final_repeat_type,
                 "creator_id": creator_id,
                 "creator_name": creator_name,
                 "is_task": is_task
@@ -320,7 +321,7 @@ class ReminderSystem:
             self.reminder_data[msg_origin].append(reminder)
 
             # 添加定时任务
-            if not self.scheduler_manager.add_job(msg_origin, reminder, datetime_str):
+            if not self.scheduler_manager.add_job(msg_origin, reminder, dt):
                 return event.plain_result(f"添加定时任务失败")
 
             # 保存提醒数据
@@ -329,8 +330,7 @@ class ReminderSystem:
 
             # 生成提示信息
             week_names = ['周一', '周二', '周三', '周四', '周五', '周六', '周日']
-            week_day = datetime.strptime(datetime_str, "%Y-%m-%d %H:%M").weekday()
-            start_str = f"从 {week_names[week_day]} 开始，" if week else ""
+            start_str = f"从 {week_names[dt.weekday()]} 开始，" if week else ""
 
             # 根据重复类型和节假日类型生成文本说明
             repeat_str = "一次性"
@@ -376,7 +376,7 @@ class ReminderSystem:
             # else:
             #    return f'好的，您的"{text}"已设置成功，时间为{datetime_str}，{repeat_str}。'
             return event.plain_result(
-                f"已设置提醒:\n内容: {text}\n时间: {datetime_str}\n{start_str}{repeat_str}\n\n使用 /si ls 查看所有提醒和任务")
+                f"已设置提醒:\n内容: {text}\n时间: {datetime_str}\n{start_str}{repeat_str}\n\n使用 /si 列表 查看所有提醒和任务")
         except Exception as e:
             logger.error(f"添加提醒时出错: {str(e)}")
             return event.plain_result(f"设置提醒时出错：{str(e)}")

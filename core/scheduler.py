@@ -75,10 +75,10 @@ class ReminderScheduler:
     def _init_scheduler(self):
         '''初始化定时器'''
         # 定义星期映射
-        self.weekday_map = {0: "周日", 1: "周一", 2: "周二", 3: "周三", 4: "周四", 5: "周五", 6: "周六"}
+        self.weekday_map = {'mon': 0, 'tue': 1, 'wed': 2, 'thu': 3, 'fri': 4, 'sat': 5, 'sun': 6}
 
-        # 获取提醒数据
-        self.reminder_data = load_reminder_data(self.data_file)
+        # # 获取提醒数据
+        # self.reminder_data = load_reminder_data(self.data_file)
 
         logger.info(
             f"开始初始化调度器，加载 {sum(len(reminders) for reminders in self.reminder_data.values())} 个提醒/任务")
@@ -119,9 +119,8 @@ class ReminderScheduler:
                 # 判断过期
                 repeat_type = reminder.get("repeat", "none")
                 if (repeat_type == "none" or
-                    not any(
-                        repeat_key in repeat_type for repeat_key in ["每天", "每周", "每月", "每年"])) and is_outdated(
-                    reminder):
+                    not any(repeat_key in repeat_type for repeat_key in
+                            ["daily", "weekly", "monthly", "yearly"])) and is_outdated(reminder):
                     logger.info(f"跳过已过期的提醒: {reminder['text']}")
                     continue
 
@@ -130,7 +129,7 @@ class ReminderScheduler:
                 job_id = f"reminder_{group}_{i}_{timestamp}"
 
                 # 根据重复类型设置不同的触发器
-                if reminder.get("repeat") == "每天":
+                if reminder.get("repeat") == "daily":
                     self.scheduler.add_job(
                         self._reminder_callback,
                         'cron',
@@ -141,7 +140,7 @@ class ReminderScheduler:
                         id=job_id
                     )
                     logger.info(f"添加每日提醒: {reminder['text']} 时间: {dt.hour}:{dt.minute} ID: {job_id}")
-                elif reminder.get("repeat") == "每天_workday":
+                elif reminder.get("repeat") == "daily_workday":
                     # 每个工作日重复
                     self.scheduler.add_job(
                         self._check_and_execute_workday,
@@ -153,8 +152,8 @@ class ReminderScheduler:
                         id=job_id
                     )
                     logger.info(f"添加工作日提醒: {reminder['text']} 时间: {dt.hour}:{dt.minute} ID: {job_id}")
-                elif reminder.get("repeat") == "每天_holiday":
-                    # 每个节假日重复
+                elif reminder.get("repeat") == "daily_holiday":
+                    # 每个法定节假日重复
                     self.scheduler.add_job(
                         self._check_and_execute_holiday,
                         'cron',
@@ -165,7 +164,7 @@ class ReminderScheduler:
                         id=job_id
                     )
                     logger.info(f"添加节假日提醒: {reminder['text']} 时间: {dt.hour}:{dt.minute} ID: {job_id}")
-                elif reminder.get("repeat") == "每周":
+                elif reminder.get("repeat") == "weekly":
                     self.scheduler.add_job(
                         self._reminder_callback,
                         'cron',
@@ -177,8 +176,8 @@ class ReminderScheduler:
                         id=job_id
                     )
                     logger.info(
-                        f"添加每周提醒: {reminder['text']} 时间: 每周{self.weekday_map[dt.weekday()]} {dt.hour}:{dt.minute} ID: {job_id}")
-                elif reminder.get("repeat") == "每周_workday":
+                        f"添加每周提醒: {reminder['text']} 时间: 每周{dt.weekday() + 1} {dt.hour}:{dt.minute} ID: {job_id}")
+                elif reminder.get("repeat") == "weekly_workday":
                     # 每周的这一天，但仅工作日执行
                     self.scheduler.add_job(
                         self._check_and_execute_workday,
@@ -191,8 +190,8 @@ class ReminderScheduler:
                         id=job_id
                     )
                     logger.info(
-                        f"添加每周工作日提醒: {reminder['text']} 时间: 每周{self.weekday_map[dt.weekday()]} {dt.hour}:{dt.minute} ID: {job_id}")
-                elif reminder.get("repeat") == "每周_holiday":
+                        f"添加每周工作日提醒: {reminder['text']} 时间: 每周{dt.weekday() + 1} {dt.hour}:{dt.minute} ID: {job_id}")
+                elif reminder.get("repeat") == "weekly_holiday":
                     # 每周的这一天，但仅法定节假日执行
                     self.scheduler.add_job(
                         self._check_and_execute_holiday,
@@ -205,8 +204,8 @@ class ReminderScheduler:
                         id=job_id
                     )
                     logger.info(
-                        f"添加每周节假日提醒: {reminder['text']} 时间: 每周{self.weekday_map[dt.weekday()]} {dt.hour}:{dt.minute} ID: {job_id}")
-                elif reminder.get("repeat") == "每月":
+                        f"添加每周节假日提醒: {reminder['text']} 时间: 每周{dt.weekday() + 1} {dt.hour}:{dt.minute} ID: {job_id}")
+                elif reminder.get("repeat") == "monthly":
                     self.scheduler.add_job(
                         self._reminder_callback,
                         'cron',
@@ -219,7 +218,7 @@ class ReminderScheduler:
                     )
                     logger.info(
                         f"添加每月提醒: {reminder['text']} 时间: 每月{dt.day}日 {dt.hour}:{dt.minute} ID: {job_id}")
-                elif reminder.get("repeat") == "每月_workday":
+                elif reminder.get("repeat") == "monthly_workday":
                     # 每月的这一天，但仅工作日执行
                     self.scheduler.add_job(
                         self._check_and_execute_workday,
@@ -233,7 +232,7 @@ class ReminderScheduler:
                     )
                     logger.info(
                         f"添加每月工作日提醒: {reminder['text']} 时间: 每月{dt.day}日 {dt.hour}:{dt.minute} ID: {job_id}")
-                elif reminder.get("repeat") == "每月_holiday":
+                elif reminder.get("repeat") == "monthly_holiday":
                     # 每月的这一天，但仅法定节假日执行
                     self.scheduler.add_job(
                         self._check_and_execute_holiday,
@@ -247,7 +246,7 @@ class ReminderScheduler:
                     )
                     logger.info(
                         f"添加每月节假日提醒: {reminder['text']} 时间: 每月{dt.day}日 {dt.hour}:{dt.minute} ID: {job_id}")
-                elif reminder.get("repeat") == "每年":
+                elif reminder.get("repeat") == "yearly":
                     self.scheduler.add_job(
                         self._reminder_callback,
                         'cron',
@@ -261,7 +260,7 @@ class ReminderScheduler:
                     )
                     logger.info(
                         f"添加每年提醒: {reminder['text']} 时间: 每年{dt.month}月{dt.day}日 {dt.hour}:{dt.minute} ID: {job_id}")
-                elif reminder.get("repeat") == "每年_workday":
+                elif reminder.get("repeat") == "yearly_workday":
                     # 每年的这一天，但仅工作日执行
                     self.scheduler.add_job(
                         self._check_and_execute_workday,
@@ -276,7 +275,7 @@ class ReminderScheduler:
                     )
                     logger.info(
                         f"添加每年工作日提醒: {reminder['text']} 时间: 每年{dt.month}月{dt.day}日 {dt.hour}:{dt.minute} ID: {job_id}")
-                elif reminder.get("repeat") == "每年_holiday":
+                elif reminder.get("repeat") == "yearly_holiday":
                     # 每年的这一天，但仅法定节假日执行
                     self.scheduler.add_job(
                         self._check_and_execute_holiday,
@@ -533,7 +532,7 @@ class ReminderScheduler:
                     id=job_id
                 )
                 logger.info(f"添加一次性提醒: {reminder['text']} 时间: {dt.strftime('%Y-%m-%d %H:%M')} ID: {job_id}")
-            elif reminder.get("repeat") == "每天":
+            elif reminder.get("repeat") == "daily":
                 self.scheduler.add_job(
                     self._reminder_callback,
                     'cron',
@@ -544,7 +543,7 @@ class ReminderScheduler:
                     id=job_id
                 )
                 logger.info(f"添加每日提醒: {reminder['text']} 时间: {dt.hour}:{dt.minute} ID: {job_id}")
-            elif reminder.get("repeat") == "每天_workday":
+            elif reminder.get("repeat") == "daily_holiday":
                 self.scheduler.add_job(
                     self._check_and_execute_workday,
                     'cron',
@@ -555,7 +554,7 @@ class ReminderScheduler:
                     id=job_id
                 )
                 logger.info(f"添加工作日提醒: {reminder['text']} 时间: {dt.hour}:{dt.minute} ID: {job_id}")
-            elif reminder.get("repeat") == "每天_holiday":
+            elif reminder.get("repeat") == "daily_holiday":
                 self.scheduler.add_job(
                     self._check_and_execute_holiday,
                     'cron',
@@ -566,7 +565,7 @@ class ReminderScheduler:
                     id=job_id
                 )
                 logger.info(f"添加节假日提醒: {reminder['text']} 时间: {dt.hour}:{dt.minute} ID: {job_id}")
-            elif reminder.get("repeat") == "每周":
+            elif reminder.get("repeat") == "weekly":
                 self.scheduler.add_job(
                     self._reminder_callback,
                     'cron',
@@ -578,8 +577,8 @@ class ReminderScheduler:
                     id=job_id
                 )
                 logger.info(
-                    f"添加每周提醒: {reminder['text']} 时间: 每周{self.weekday_map[dt.weekday()]} {dt.hour}:{dt.minute} ID: {job_id}")
-            elif reminder.get("repeat") == "每周_workday":
+                    f"添加每周提醒: {reminder['text']} 时间: 每周{self.weekday_map[dt.weekday()] + 1} {dt.hour}:{dt.minute} ID: {job_id}")
+            elif reminder.get("repeat") == "weekly_workday":
                 self.scheduler.add_job(
                     self._check_and_execute_workday,
                     'cron',
@@ -591,8 +590,8 @@ class ReminderScheduler:
                     id=job_id
                 )
                 logger.info(
-                    f"添加每周工作日提醒: {reminder['text']} 时间: 每周{self.weekday_map[dt.weekday()]} {dt.hour}:{dt.minute} ID: {job_id}")
-            elif reminder.get("repeat") == "每周_holiday":
+                    f"添加每周工作日提醒: {reminder['text']} 时间: 每周{self.weekday_map[dt.weekday()] + 1} {dt.hour}:{dt.minute} ID: {job_id}")
+            elif reminder.get("repeat") == "weekly_holiday":
                 self.scheduler.add_job(
                     self._check_and_execute_holiday,
                     'cron',
@@ -604,8 +603,8 @@ class ReminderScheduler:
                     id=job_id
                 )
                 logger.info(
-                    f"添加每周节假日提醒: {reminder['text']} 时间: 每周{self.weekday_map[dt.weekday()]} {dt.hour}:{dt.minute} ID: {job_id}")
-            elif reminder.get("repeat") == "每月":
+                    f"添加每周节假日提醒: {reminder['text']} 时间: 每周{self.weekday_map[dt.weekday()] + 1} {dt.hour}:{dt.minute} ID: {job_id}")
+            elif reminder.get("repeat") == "monthly":
                 self.scheduler.add_job(
                     self._reminder_callback,
                     'cron',
@@ -617,7 +616,7 @@ class ReminderScheduler:
                     id=job_id
                 )
                 logger.info(f"添加每月提醒: {reminder['text']} 时间: 每月{dt.day}日 {dt.hour}:{dt.minute} ID: {job_id}")
-            elif reminder.get("repeat") == "每月_workday":
+            elif reminder.get("repeat") == "monthly_workday":
                 self.scheduler.add_job(
                     self._check_and_execute_workday,
                     'cron',
@@ -630,7 +629,7 @@ class ReminderScheduler:
                 )
                 logger.info(
                     f"添加每月工作日提醒: {reminder['text']} 时间: 每月{dt.day}日 {dt.hour}:{dt.minute} ID: {job_id}")
-            elif reminder.get("repeat") == "每月_holiday":
+            elif reminder.get("repeat") == "monthly_holiday":
                 self.scheduler.add_job(
                     self._check_and_execute_holiday,
                     'cron',
@@ -643,7 +642,7 @@ class ReminderScheduler:
                 )
                 logger.info(
                     f"添加每月节假日提醒: {reminder['text']} 时间: 每月{dt.day}日 {dt.hour}:{dt.minute} ID: {job_id}")
-            elif reminder.get("repeat") == "每年":
+            elif reminder.get("repeat") == "yearly":
                 self.scheduler.add_job(
                     self._reminder_callback,
                     'cron',
@@ -657,7 +656,7 @@ class ReminderScheduler:
                 )
                 logger.info(
                     f"添加每年提醒: {reminder['text']} 时间: 每年{dt.month}月{dt.day}日 {dt.hour}:{dt.minute} ID: {job_id}")
-            elif reminder.get("repeat") == "每年_workday":
+            elif reminder.get("repeat") == "yearly_workday":
                 self.scheduler.add_job(
                     self._check_and_execute_workday,
                     'cron',
@@ -671,7 +670,7 @@ class ReminderScheduler:
                 )
                 logger.info(
                     f"添加每年工作日提醒: {reminder['text']} 时间: 每年{dt.month}月{dt.day}日 {dt.hour}:{dt.minute} ID: {job_id}")
-            elif reminder.get("repeat") == "每年_holiday":
+            elif reminder.get("repeat") == "yearly_holiday":
                 self.scheduler.add_job(
                     self._check_and_execute_holiday,
                     'cron',

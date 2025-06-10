@@ -41,27 +41,27 @@
 插件提供以下命令用于管理提醒和任务：
 
 1. 添加提醒：
-/rmd add <内容> <时间> [开始星期] [重复类型] [--holiday_type=...]
+/si 添加提醒 <内容> <时间> [开始星期] [重复类型] [--holiday_type=...]
 例如：
-- `/rmd add 写周报 8:05 mon weekly`
-- `/rmd add 上班打卡 8:30 daily workday`（每个工作日）
-- `/rmd add 休息提醒 9:00 daily holiday`（每个法定节假日）
+- `/si 添加提醒 写周报 8:05 mon weekly`
+- `/si 添加提醒 上班打卡 8:30 daily workday`（每个工作日）
+- `/si 添加提醒 休息提醒 9:00 daily holiday`（每个法定节假日）
 
 2. 添加任务：
-/rmd task <内容> <时间> [开始星期] [重复类型] [--holiday_type=...]
+/si 添加任务 <内容> <时间> [开始星期] [重复类型] [--holiday_type=...]
 例如：
-- `/rmd task 发送天气预报 8:00 daily`
-- `/rmd task 工作安排 9:00 mon weekly workday`（每周一工作日）
+- `/si 添加任务 发送天气预报 8:00 daily`
+- `/si 添加任务 工作安排 9:00 mon weekly workday`（每周一工作日）
 
 3. 查看所有提醒和任务：
-/rmd ls
+/si 列表
 
 4. 删除指定提醒或任务：
-/rmd rm <序号>
-例如：删除第1个提醒 `/rmd rm 1`
+/si 删除 <序号>
+例如：删除第1个提醒 `/删除 rm 1`
 
 5. 查看帮助信息：
-/rmd help
+/si help
 
 ### 使用演示
 
@@ -119,7 +119,7 @@
 
 ## 配置说明
 
-插件会在 `data/astrbot_plugin_remind/` 目录下自动创建 `reminder_data.json` 文件用于存储提醒和任务数据。
+插件会在 `data/astrbot_plugin_remind/` 目录下自动创建 `astrbot_plugin_remind.json` 文件用于存储提醒和任务数据。
 
 会话隔离配置保存在 `data/config/ai_reminder_config.json` 文件中，也可通过管理面板配置。
 

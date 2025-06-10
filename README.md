@@ -2,10 +2,10 @@
 
 <div align="center">
 
-![GitHub release (latest by date)](https://img.shields.io/github/v/release/Angus-fw/astrbot_plugin_angus)
+![GitHub release (latest by date)](https://img.shields.io/github/v/release/Angus-fw/astrbot_plugin_remind)
 ![Python](https://img.shields.io/badge/python-3.7%2B-blue)
-![License](https://img.shields.io/github/license/Angus-fw/astrbot_plugin_angus)
-![Stars](https://img.shields.io/github/stars/Angus-fw/astrbot_plugin_angus?style=social)
+![License](https://img.shields.io/github/license/Angus-fw/astrbot_plugin_remind)
+![Stars](https://img.shields.io/github/stars/Angus-fw/astrbot_plugin_remind?style=social)
 
 > ✨ 为 AstrBot 开发的多功能插件合集，集成智能提醒、主动对话、涩图、服务器监控等实用功能。
 > ✨ 已适配平台QQ(aiocqhttp),微信(wechatpadpro),微信公众平台(weixin_official_account)
@@ -150,7 +150,7 @@ si 删除回复 你好
 ## 🔧 安装方法
 
 ```bash
-# 1. 将插件文件夹 `astrbot_plugin_angus` 复制到 AstrBot 的 plugins 目录下
+# 1. 将插件文件夹 `astrbot_plugin_remind` 复制到 AstrBot 的 plugins 目录下
 # 2. 重启 AstrBot
 ```
 
@@ -216,14 +216,14 @@ si 删除回复 你好
 
 | 功能模块 | 文件路径 | 说明 |
 |---------|---------|------|
-| 提醒和任务数据 | `data/astrbot_plugin_angus/reminder_data.json` | 所有提醒和任务的持久化数据 |
+| 提醒和任务数据 | `data/astrbot_plugin_remind/reminder_data.json` | 所有提醒和任务的持久化数据 |
 | 会话隔离配置 | `data/config/ai_reminder_config.json` | 是否启用会话隔离的配置 |
-| 节假日数据缓存 | `data/astrbot_plugin_angus/holiday_cache.json` | 节假日API缓存 |
-| 主动对话白名单 | `data/astrbot_plugin_angus/active_conversation.json` | 主动对话目标用户ID列表 |
-| 关键词自定义回复 | `data/astrbot_plugin_angus/keyword_reply_config.json` | 关键词自动回复的自定义内容 |
+| 节假日数据缓存 | `data/astrbot_plugin_remind/holiday_cache.json` | 节假日API缓存 |
+| 主动对话白名单 | `data/astrbot_plugin_remind/active_conversation.json` | 主动对话目标用户ID列表 |
+| 关键词自定义回复 | `data/astrbot_plugin_remind/keyword_reply_config.json` | 关键词自动回复的自定义内容 |
 | 配置结构说明 | `_conf_schema.json` | 插件所有配置项的结构和默认值说明 |
 
-> 💡 所有数据/配置文件的根目录均通过 StarTools.get_data_dir("astrbot_plugin_angus") 自动统一管理，便于迁移和维护。
+> 💡 所有数据/配置文件的根目录均通过 StarTools.get_data_dir("astrbot_plugin_remind") 自动统一管理，便于迁移和维护。
 
 ### 会话隔离功能
 会话隔离功能使群聊中的每个成员都能拥有自己独立的提醒和任务列表，其他成员无法看到或操作。
@@ -255,8 +255,8 @@ si 删除回复 你好
 ## 💬 支持与反馈
 
 - 📚 文档：[AstrBot插件开发文档](https://astrbot.soulter.top/center/docs/%E5%BC%80%E5%8F%91/%E6%8F%92%E4%BB%B6%E5%BC%80%E5%8F%91/)
-- 🐛 问题反馈：[GitHub Issues](https://github.com/Angus-fw/astrbot_plugin_angus)
-- 💡 功能建议：[Discussions](https://github.com/Angus-fw/astrbot_plugin_angus/discussions)
+- 🐛 问题反馈：[GitHub Issues](https://github.com/Angus-fw/astrbot_plugin_remind)
+- 💡 功能建议：[Discussions](https://github.com/Angus-fw/astrbot_plugin_remind/discussions)
 
 ## 📝 更新日志
 
@@ -272,7 +272,7 @@ si 删除回复 你好
 - 🎯 优化了代码结构，提高了性能
 - 🎯 添加了更多配置选项，使插件更加灵活
 
-### v1.1.1
+### v0.0.1
 - ✨ 初始版本发布
 - 🎯 实现基本的提醒和任务功能
 - 📅 支持节假日判断

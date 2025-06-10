@@ -57,14 +57,14 @@ class ReminderTools:
         return msg_origin
 
     async def set_reminder(self, event: Union[AstrMessageEvent, Context], text: str, datetime_str: str,
-                           user_name: str = "用户", repeat: str = None, holiday_type: str = None):
+                           user_name: str = "用户", repeat_type: str = None, holiday_type: str = None):
         '''设置一个提醒
         
         Args:
             text(string): 提醒内容
             datetime_str(string): 提醒时间，格式为 %Y-%m-%d %H:%M
             user_name(string): 提醒对象名称，默认为"用户"
-            repeat(string): 重复类型，可选值：daily(每天)，weekly(每周)，monthly(每月)，yearly(每年)，none(不重复)
+            repeat_type(string): 重复类型，可选值：daily(每天)，weekly(每周)，monthly(每月)，yearly(每年)，none(不重复)
             holiday_type(string): 可选，节假日类型：workday(仅工作日执行)，holiday(仅法定节假日执行)
         '''
         try:
@@ -86,9 +86,9 @@ class ReminderTools:
                 self.reminder_data[msg_origin] = []
 
             # 处理重复类型和节假日类型的组合
-            final_repeat = repeat or "none" or "不重复"
-            if repeat and holiday_type:
-                final_repeat = f"{repeat}_{holiday_type}"
+            final_repeat = repeat_type or "none" or "不重复"
+            if repeat_type and holiday_type:
+                final_repeat = f"{repeat_type}_{holiday_type}"
 
             reminder = {
                 "text": text,
@@ -123,30 +123,30 @@ class ReminderTools:
 
             # 构建提示信息
             repeat_str = ""
-            if repeat == "每天" and not holiday_type:
-                repeat_str = "每天"
-            elif repeat == "每天" and holiday_type == "workday":
-                repeat_str = "工作日"
-            elif repeat == "每天" and holiday_type == "holiday":
-                repeat_str = "节假日"
-            elif repeat == "每周" and not holiday_type:
-                repeat_str = "每周"
-            elif repeat == "每周" and holiday_type == "workday":
-                repeat_str = "每周工作日"
-            elif repeat == "每周" and holiday_type == "holiday":
-                repeat_str = "每周节假日"
-            elif repeat == "每月" and not holiday_type:
-                repeat_str = "每月"
-            elif repeat == "每月" and holiday_type == "workday":
-                repeat_str = "每月工作日"
-            elif repeat == "每月" and holiday_type == "holiday":
-                repeat_str = "每月节假日"
-            elif repeat == "每年" and not holiday_type:
-                repeat_str = "每年"
-            elif repeat == "每年" and holiday_type == "workday":
-                repeat_str = "每年工作日"
-            elif repeat == "每年" and holiday_type == "holiday":
-                repeat_str = "每年节假日"
+            if repeat_type == "daily" and not holiday_type:
+                repeat_str = "，每天重复"
+            elif repeat_type == "daily" and holiday_type == "workday":
+                repeat_str = "，每个工作日重复（法定节假日不触发）"
+            elif repeat_type == "daily" and holiday_type == "holiday":
+                repeat_str = "，每个法定节假日重复"
+            elif repeat_type == "weekly" and not holiday_type:
+                repeat_str = "，每周重复"
+            elif repeat_type == "weekly" and holiday_type == "workday":
+                repeat_str = "，每周的这一天重复，但仅工作日触发"
+            elif repeat_type == "weekly" and holiday_type == "holiday":
+                repeat_str = "，每周的这一天重复，但仅法定节假日触发"
+            elif repeat_type == "monthly" and not holiday_type:
+                repeat_str = "，每月重复"
+            elif repeat_type == "monthly" and holiday_type == "workday":
+                repeat_str = "，每月的这一天重复，但仅工作日触发"
+            elif repeat_type == "monthly" and holiday_type == "holiday":
+                repeat_str = "，每月的这一天重复，但仅法定节假日触发"
+            elif repeat_type == "yearly" and not holiday_type:
+                repeat_str = "，每年重复"
+            elif repeat_type == "yearly" and holiday_type == "workday":
+                repeat_str = "，每年的这一天重复，但仅工作日触发"
+            elif repeat_type == "yearly" and holiday_type == "holiday":
+                repeat_str = "，每年的这一天重复，但仅法定节假日触发"
 
             return f"已设置提醒:\n内容: {text}\n时间: {datetime_str}{repeat_str}\n\n使用 /si 列表 查看所有提醒"
 
@@ -154,14 +154,14 @@ class ReminderTools:
             logger.error(f"设置提醒时出错: {str(e)}")
             return f"设置提醒时出错：{str(e)}"
 
-    async def set_task(self, event: Union[AstrMessageEvent, Context], text: str, datetime_str: str, repeat: str = None,
+    async def set_task(self, event: Union[AstrMessageEvent, Context], text: str, datetime_str: str, repeat_type: str = None,
                        holiday_type: str = None):
         '''设置一个任务，到时间后会让AI执行该任务
         
         Args:
             text(string): 任务内容，AI将执行的操作
             datetime_str(string): 任务执行时间，格式为 %Y-%m-%d %H:%M
-            repeat(string): 重复类型，可选值：每天，每周，每月，每年，不重复
+            repeat_type(string): 重复类型，可选值：daily(每天)，weekly(每周)，monthly(每月)，yearly(每年)，none(不重复)
             holiday_type(string): 可选，节假日类型：workday(仅工作日执行)，holiday(仅法定节假日执行)
         '''
         try:
@@ -183,9 +183,9 @@ class ReminderTools:
                 self.reminder_data[msg_origin] = []
 
             # 处理重复类型和节假日类型的组合
-            final_repeat = repeat or "不重复"
-            if repeat and holiday_type:
-                final_repeat = f"{repeat}_{holiday_type}"
+            final_repeat = repeat_type or "none" or "不重复"
+            if repeat_type and holiday_type:
+                final_repeat = f"{repeat_type}_{holiday_type}"
 
             task = {
                 "text": text,
@@ -217,30 +217,30 @@ class ReminderTools:
 
             # 构建提示信息
             repeat_str = ""
-            if repeat == "每天" and not holiday_type:
-                repeat_str = "每天"
-            elif repeat == "每天" and holiday_type == "workday":
-                repeat_str = "工作日"
-            elif repeat == "每天" and holiday_type == "holiday":
-                repeat_str = "节假日"
-            elif repeat == "每周" and not holiday_type:
-                repeat_str = "每周"
-            elif repeat == "每周" and holiday_type == "workday":
-                repeat_str = "每周工作日"
-            elif repeat == "每周" and holiday_type == "holiday":
-                repeat_str = "每周节假日"
-            elif repeat == "每月" and not holiday_type:
-                repeat_str = "每月"
-            elif repeat == "每月" and holiday_type == "workday":
-                repeat_str = "每月工作日"
-            elif repeat == "每月" and holiday_type == "holiday":
-                repeat_str = "每月节假日"
-            elif repeat == "每年" and not holiday_type:
-                repeat_str = "每年"
-            elif repeat == "每年" and holiday_type == "workday":
-                repeat_str = "每年工作日"
-            elif repeat == "每年" and holiday_type == "holiday":
-                repeat_str = "每年节假日"
+            if repeat_type == "daily" and not holiday_type:
+                repeat_str = "，每天重复"
+            elif repeat_type == "daily" and holiday_type == "workday":
+                repeat_str = "，每个工作日重复（法定节假日不触发）"
+            elif repeat_type == "daily" and holiday_type == "holiday":
+                repeat_str = "，每个法定节假日重复"
+            elif repeat_type == "weekly" and not holiday_type:
+                repeat_str = "，每周重复"
+            elif repeat_type == "weekly" and holiday_type == "workday":
+                repeat_str = "，每周的这一天重复，但仅工作日触发"
+            elif repeat_type == "weekly" and holiday_type == "holiday":
+                repeat_str = "，每周的这一天重复，但仅法定节假日触发"
+            elif repeat_type == "monthly" and not holiday_type:
+                repeat_str = "，每月重复"
+            elif repeat_type == "monthly" and holiday_type == "workday":
+                repeat_str = "，每月的这一天重复，但仅工作日触发"
+            elif repeat_type == "monthly" and holiday_type == "holiday":
+                repeat_str = "，每月的这一天重复，但仅法定节假日触发"
+            elif repeat_type == "yearly" and not holiday_type:
+                repeat_str = "，每年重复"
+            elif repeat_type == "yearly" and holiday_type == "workday":
+                repeat_str = "，每年的这一天重复，但仅工作日触发"
+            elif repeat_type == "yearly" and holiday_type == "holiday":
+                repeat_str = "，每年的这一天重复，但仅法定节假日触发"
 
             return f"已设置任务:\n内容: {text}\n时间: {datetime_str}{repeat_str}\n\n使用 /si 列表 查看所有任务"
 
@@ -264,7 +264,7 @@ class ReminderTools:
             content(string): 可选，提醒或者任务内容包含的关键词
             time(string): 可选，具体时间点，格式为 HH:MM，如 "08:00"
             weekday(string): 可选，星期几，可选值：mon,tue,wed,thu,fri,sat,sun
-            repeat_type(string): 可选，重复类型，可选值：每天,每周,每月,每年
+            repeat_type(string): 可选，重复类型，可选值：daily,weekly,monthly,yearly
             date(string): 可选，具体日期，格式为 YYYY-MM-DD，如 "2024-02-09"
             all(string): 可选，是否删除所有提醒，可选值：yes/no，默认no
             task_only(string): 可选，是否只删除任务，可选值：yes/no，默认no
@@ -295,16 +295,14 @@ class ReminderTools:
             to_delete = []
 
             # 验证星期格式
-            week_map = {
-                '周日': 6, '周一': 0, '周二': 1, '周三': 2, '周四': 3, '周五': 4, '周六': 5
-            }
-            if weekday and weekday not in week_map:
-                return "星期格式错误，可选值：周日,周一,周二,周三,周四,周五,周六"
+            week_map = {'mon': 0, 'tue': 1, 'wed': 2, 'thu': 3, 'fri': 4, 'sat': 5, 'sun': 6}
+            if weekday and weekday.lower() not in week_map:
+                return "星期格式错误，可选值：mon,tue,wed,thu,fri,sat,sun"
 
             # 验证重复类型
-            repeat_types = ["每天", "每周", "每月", "每年"]
+            repeat_types = ["daily", "weekly", "monthly", "yearly"]
             if repeat_type and repeat_type.lower() not in repeat_types:
-                return "重复类型错误，可选值：每天,每周,每月,每年"
+                return "重复类型错误，可选值：daily,weekly,monthly,yearly"
 
             for i, reminder in enumerate(reminders):
                 dt = datetime.datetime.strptime(reminder["datetime"], "%Y-%m-%d %H:%M")
@@ -338,13 +336,13 @@ class ReminderTools:
 
                 # 检查星期
                 if weekday:
-                    if reminder.get("repeat") == "每周":
+                    if reminder.get("repeat") == "weekly":
                         # 对于每周重复的任务，检查是否在指定星期执行
-                        if dt.weekday() != week_map[weekday]:
+                        if dt.weekday() != week_map[weekday.lower()]:
                             match = False
                     else:
                         # 对于非每周重复的任务，检查日期是否落在指定星期
-                        if dt.weekday() != week_map[weekday]:
+                        if dt.weekday() != week_map[weekday.lower()]:
                             match = False
 
                 # 检查重复类型

@@ -3,7 +3,7 @@ import os
 
 from astrbot.api import llm_tool
 from astrbot.api import logger, AstrBotConfig
-from astrbot.api.event import AstrMessageEvent, MessageEventResult
+from astrbot.api.event import filter, AstrMessageEvent, MessageEventResult
 from astrbot.api.event import MessageChain
 from astrbot.api.event.filter import command, command_group, EventMessageType, PermissionType, event_message_type
 from astrbot.api.message_components import *
@@ -65,7 +65,14 @@ class Main(Star):
         self.last_usage = {}  # 存储每个用户上次使用指令的时间
         self.semaphore = asyncio.Semaphore(10)  # 限制并发请求数量为 10
 
-    @command("si 列表")
+    # ========== 命令行开始 ==========
+    # 命令组必须定义在主类中
+    @command_group("si")
+    def si(self):
+        '''提醒和任务相关命令'''
+        pass
+
+    @si.command("列表")
     async def list_reminders(self, event: AstrMessageEvent):
         '''列出所有提醒和任务'''
         try:
@@ -75,40 +82,44 @@ class Main(Star):
             logger.error(f"列出提醒时出错: {str(e)}")
             yield event.plain_result(f"列出提醒时出错：{str(e)}")
 
-    @command("si 删除")
+    @si.command("删除")
     async def remove_reminder(self, event: AstrMessageEvent, index: int):
         '''删除提醒或任务'''
         result = await self.reminder_system.remove_reminder(event, index)
         yield event.plain_result(result)
 
-    @command("si 添加提醒")
+    @si.command("添加提醒")
     async def add_reminder(self, event: AstrMessageEvent, text: str, time_str: str, week: str = None,
-                           repeat: str = None, holiday_type: str = None):
+                           repeat_type: str = None, holiday_type: str = None):
         '''手动添加提醒'''
-        result = await self.reminder_system.add_reminder(event, text, time_str, week, repeat, holiday_type, False)
+        result = await self.reminder_system.add_reminder(event, text, time_str, week, repeat_type, holiday_type, False)
         yield event.plain_result(result)
 
-    @command("si 添加任务")
-    async def add_task(self, event: AstrMessageEvent, text: str, time_str: str, week: str = None, repeat: str = None,
-                       holiday_type: str = None):
+    @si.command("添加任务")
+    async def add_task(self, event: AstrMessageEvent, text: str, time_str: str, week: str = None,
+                       repeat_type: str = None, holiday_type: str = None):
         '''手动添加任务'''
-        result = await self.reminder_system.add_reminder(event, text, time_str, week, repeat, holiday_type, True)
+        result = await self.reminder_system.add_reminder(event, text, time_str, week, repeat_type, holiday_type, True)
         yield event.plain_result(result)
 
-    @command("si help")
+    @si.command("help")
     async def show_help(self, event: AstrMessageEvent):
         '''显示帮助信息'''
         help_text = self.reminder_system.get_help_text()
         yield event.plain_result(help_text)
 
-    @llm_tool(name="set_reminder")
-    async def set_reminder(self, event, text: str, datetime_str: str, repeat: str = None, holiday_type: str = None):
-        '''设置一个提醒
+    # ========== 命令行结束 ==========
+
+    # ========== LLM 开始 ==========
+    @filter.llm_tool(name="set_reminder")
+    async def set_reminder(self, event, text: str, datetime_str: str, repeat_type: str = None,
+                           holiday_type: str = None):
+        '''设置一个提醒，到时间时会提醒用户
 
         Args:
             text(string): 提醒内容
             datetime_str(string): 提醒时间，格式为 %Y-%m-%d %H:%M
-            repeat(string): 重复类型，可选值：每天，每周，每月，每年，不重复
+            repeat_type(string): 重复类型，可选值：daily(每天)，weekly(每周)，monthly(每月)，yearly(每年)，none(不重复)
             holiday_type(string): 可选，节假日类型：workday(仅工作日执行)，holiday(仅法定节假日执行)
         '''
         try:
@@ -117,7 +128,7 @@ class Main(Star):
                 event.message_obj.sender, 'nickname') else "用户"
 
             # 调用工具类设置提醒
-            result = await self.tools.set_reminder(event, text, datetime_str, user_name, repeat, holiday_type)
+            result = await self.tools.set_reminder(event, text, datetime_str, user_name, repeat_type, holiday_type)
             logger.info(f"设置提醒结果: {result}")
             return result
 
@@ -125,14 +136,14 @@ class Main(Star):
             logger.error(f"设置提醒时出错: {str(e)}")
             return f"设置提醒失败：{str(e)}"
 
-    @llm_tool(name="set_task")
-    async def set_task(self, event, text: str, datetime_str: str, repeat: str = None, holiday_type: str = None):
+    @filter.llm_tool(name="set_task")
+    async def set_task(self, event, text: str, datetime_str: str, repeat_type: str = None, holiday_type: str = None):
         '''设置一个任务，到时间后会让AI执行该任务
         
         Args:
-            text(string): 任务内容，AI将执行的操作
+            text(string): 任务内容，AI将执行的操作，如果是调用其他llm函数，请告诉ai（比如，请调用llm函数，内容是...）
             datetime_str(string): 任务执行时间，格式为 %Y-%m-%d %H:%M
-            repeat(string): 重复类型，可选值：每天，每周，每月，每年，不重复
+            repeat_type(string): 重复类型，可选值：daily(每天)，weekly(每周)，monthly(每月)，yearly(每年)，none(不重复)
             holiday_type(string): 可选，节假日类型：workday(仅工作日执行)，holiday(仅法定节假日执行)
         '''
         try:
@@ -141,7 +152,7 @@ class Main(Star):
                 text = f"请调用llm函数，{text}"
 
             # 调用工具类设置任务
-            result = await self.tools.set_task(event, text, datetime_str, repeat, holiday_type)
+            result = await self.tools.set_task(event, text, datetime_str, repeat_type, holiday_type)
             logger.info(f"设置任务结果: {result}")
             return result
 
@@ -149,8 +160,7 @@ class Main(Star):
             logger.error(f"设置任务时出错: {str(e)}")
             return f"设置任务失败：{str(e)}"
 
-    @llm_tool(name="delete_reminder")
-    @llm_tool(name="delete_task")
+    @filter.llm_tool(name="delete_reminder")
     async def delete_reminder(self, event,
                               content: str = None,  # 提醒内容关键词
                               time: str = None,  # 具体时间点 HH:MM
@@ -165,8 +175,8 @@ class Main(Star):
         Args:
             content(string): 可选，提醒内容包含的关键词
             time(string): 可选，具体时间点，格式为 HH:MM，如 "08:00"
-            weekday(string): 可选，星期几，可选值：周日,周一,周二,周三,周四,周五,周六
-            repeat_type(string): 可选，重复类型，可选值：每天,每周,每月,每年
+            weekday(string): 可选，星期几，可选值：mon,tue,wed,thu,fri,sat,sun
+            repeat_type(string): 可选，重复类型，可选值：daily,weekly,monthly,yearly
             date(string): 可选，具体日期，格式为 YYYY-MM-DD，如 "2024-02-09"
             all(string): 可选，是否删除所有提醒，可选值：yes/no，默认no
             task_only(string): 可选，是否只删除任务，可选值：yes/no，默认no
@@ -175,7 +185,7 @@ class Main(Star):
         return await self.tools.delete_reminder(event, content, time, weekday, repeat_type, date, all, is_task_only,
                                                 "no")
 
-    @llm_tool(name="delete_task")
+    @filter.llm_tool(name="delete_task")
     async def delete_task(self, event,
                           content: str = None,  # 任务内容关键词
                           time: str = None,  # 具体时间点 HH:MM
@@ -189,9 +199,10 @@ class Main(Star):
         Args:
             content(string): 可选，任务内容包含的关键词
             time(string): 可选，具体时间点，格式为 HH:MM，如 "08:00"
-            weekday(string): 可选，星期几，可选值：周日,周一,周二,周三,周四,周五,周六
-            repeat_type(string): 可选，重复类型，可选值：每天,每周,每月,每年
+            weekday(string): 可选，星期几，可选值：mon,tue,wed,thu,fri,sat,sun
+            repeat_type(string): 可选，重复类型，可选值：daily,weekly,monthly,yearly
             date(string): 可选，具体日期，格式为 YYYY-MM-DD，如 "2024-02-09"
             all(string): 可选，是否删除所有任务，可选值：yes/no，默认no
         '''
         return await self.tools.delete_reminder(event, content, time, weekday, repeat_type, date, all, "yes", "no")
+    # ========== LLM 结束 ==========

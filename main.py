@@ -114,21 +114,18 @@ class Main(Star):
 
     # ========== LLM 开始 ==========
     @filter.llm_tool(name="set_reminder")
-    async def set_reminder(self, event, text: str, datetime_str: str, repeat_type: str = None,
+    async def set_reminder(self, event, text: str, datetime_str: str,user_name: str = "用户", repeat_type: str = None,
                            holiday_type: str = None):
         '''设置一个提醒，到时间时会提醒用户
 
         Args:
             text(string): 提醒内容
             datetime_str(string): 提醒时间，格式为 %Y-%m-%d %H:%M
+            user_name(string): 提醒对象名称，默认为"用户"
             repeat_type(string): 重复类型，可选值：daily(每天)，weekly(每周)，monthly(每月)，yearly(每年)，none(不重复)
             holiday_type(string): 可选，节假日类型：workday(仅工作日执行)，holiday(仅法定节假日执行)
         '''
         try:
-            # 获取用户昵称
-            user_name = event.message_obj.sender.nickname if hasattr(event.message_obj, 'sender') and hasattr(
-                event.message_obj.sender, 'nickname') else "用户"
-
             # 调用工具类设置提醒
             result = await self.tools.set_reminder(event, text, datetime_str, user_name, repeat_type, holiday_type)
             logger.info(f"设置提醒结果: {result}")

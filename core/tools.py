@@ -82,32 +82,53 @@ class ReminderTools:
                 # 使用会话隔离功能获取会话ID
                 msg_origin = self.get_session_id(raw_msg_origin, creator_id)
 
-            if msg_origin not in self.reminder_data:
-                self.reminder_data[msg_origin] = []
+            # 解析时间
+            try:
+                dt = datetime.datetime.strptime(datetime_str, "%Y-%m-%d %H:%M")
+            except ValueError as e:
+                return event.plain_result(str(e))
+
+            # 特殊处理: 检查repeat是否包含节假日类型信息
+            if repeat_type:
+                parts = repeat_type.split()
+                if len(parts) == 2 and parts[1] in ["workday", "holiday"]:
+                    # 如果repeat参数包含两部分，且第二部分是workday或holiday
+                    repeat_type = parts[0]  # 提取重复类型
+                    holiday_type = parts[1]  # 提取节假日类型
+
+            # 验证重复类型
+            repeat_types = ["daily", "weekly", "monthly", "yearly"]
+            if repeat_type and repeat_type.lower() not in repeat_types:
+                return event.plain_result("重复类型错误，可选值：daily,weekly,monthly,yearly")
+
+            # 验证节假日类型
+            holiday_types = ["workday", "holiday"]
+            if holiday_type and holiday_type.lower() not in holiday_types:
+                return event.plain_result("节假日类型错误，可选值：workday(仅工作日执行)，holiday(仅法定节假日执行)")
 
             # 处理重复类型和节假日类型的组合
-            final_repeat = repeat_type or "none"
+            final_repeat_type = repeat_type.lower() if repeat_type else "none"
             if repeat_type and holiday_type:
-                final_repeat = f"{repeat_type}_{holiday_type}"
+                final_repeat_type = f"{repeat_type.lower()}_{holiday_type.lower()}"
 
+            # 构建提醒数据
             reminder = {
                 "text": text,
                 "datetime": datetime_str,
                 "user_name": user_name,
-                "repeat": final_repeat,
+                "repeat": final_repeat_type,
                 "creator_id": creator_id,
-                "creator_name": creator_name,  # 添加创建者昵称
-                "is_task": False  # 标记为提醒，不是任务
+                "creator_name": creator_name,
+                "is_task": False
             }
 
-            # 添加提醒到数据中
+            # 添加到提醒数据中
+            if msg_origin not in self.reminder_data:
+                self.reminder_data[msg_origin] = []
             self.reminder_data[msg_origin].append(reminder)
 
             # 确保更新到 star_instance
             self.star.reminder_data = self.reminder_data
-
-            # 解析时间
-            dt = datetime.datetime.strptime(datetime_str, "%Y-%m-%d %H:%M")
 
             # 设置定时任务
             job_result = self.scheduler_manager.add_job(msg_origin, reminder, dt)
@@ -122,7 +143,7 @@ class ReminderTools:
                 return "设置提醒失败：无法保存提醒数据"
 
             # 构建提示信息
-            repeat_str = ""
+            repeat_str = "一次性"
             if repeat_type == "daily" and not holiday_type:
                 repeat_str = "，每天重复"
             elif repeat_type == "daily" and holiday_type == "workday":
@@ -179,29 +200,53 @@ class ReminderTools:
                 # 使用会话隔离功能获取会话ID
                 msg_origin = self.get_session_id(raw_msg_origin, creator_id)
 
-            if msg_origin not in self.reminder_data:
-                self.reminder_data[msg_origin] = []
+            # 解析时间
+            try:
+                dt = datetime.datetime.strptime(datetime_str, "%Y-%m-%d %H:%M")
+            except ValueError as e:
+                return event.plain_result(str(e))
+
+            # 特殊处理: 检查repeat是否包含节假日类型信息
+            if repeat_type:
+                parts = repeat_type.split()
+                if len(parts) == 2 and parts[1] in ["workday", "holiday"]:
+                    # 如果repeat参数包含两部分，且第二部分是workday或holiday
+                    repeat_type = parts[0]  # 提取重复类型
+                    holiday_type = parts[1]  # 提取节假日类型
+
+            # 验证重复类型
+            repeat_types = ["daily", "weekly", "monthly", "yearly"]
+            if repeat_type and repeat_type.lower() not in repeat_types:
+                return event.plain_result("重复类型错误，可选值：daily,weekly,monthly,yearly")
+
+            # 验证节假日类型
+            holiday_types = ["workday", "holiday"]
+            if holiday_type and holiday_type.lower() not in holiday_types:
+                return event.plain_result("节假日类型错误，可选值：workday(仅工作日执行)，holiday(仅法定节假日执行)")
 
             # 处理重复类型和节假日类型的组合
-            final_repeat = repeat_type or "none"
+            final_repeat_type = repeat_type.lower() if repeat_type else "none"
             if repeat_type and holiday_type:
-                final_repeat = f"{repeat_type}_{holiday_type}"
+                final_repeat_type = f"{repeat_type.lower()}_{holiday_type.lower()}"
 
+            # 构建任务数据
             task = {
                 "text": text,
                 "datetime": datetime_str,
                 "user_name": "用户",  # 任务模式下不需要特别指定用户名
-                "repeat": final_repeat,
+                "repeat": final_repeat_type,
                 "creator_id": creator_id,
-                "creator_name": creator_name,  # 添加创建者昵称
+                "creator_name": creator_name,
                 "is_task": True  # 标记为任务，不是提醒
             }
 
             # 添加任务到提醒数据中
+            if msg_origin not in self.reminder_data:
+                self.reminder_data[msg_origin] = []
             self.reminder_data[msg_origin].append(task)
 
-            # 解析时间
-            dt = datetime.datetime.strptime(datetime_str, "%Y-%m-%d %H:%M")
+            # 确保更新到 star_instance
+            self.star.reminder_data = self.reminder_data
 
             # 设置定时任务
             job_result = self.scheduler_manager.add_job(msg_origin, task, dt)
@@ -216,7 +261,7 @@ class ReminderTools:
                 return "设置任务失败：无法保存任务数据"
 
             # 构建提示信息
-            repeat_str = ""
+            repeat_str = "一次性"
             if repeat_type == "daily" and not holiday_type:
                 repeat_str = "，每天重复"
             elif repeat_type == "daily" and holiday_type == "workday":

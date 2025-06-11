@@ -44,8 +44,8 @@ class Main(Star):
         # 使用data目录下的数据文件，而非插件自身目录
         data_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))), "data")
         # 确保目录存在
-        os.makedirs(os.path.join(data_dir, "reminds"), exist_ok=True)
-        self.data_file = os.path.join(data_dir, "reminds", "remind_data.json")
+        os.makedirs(os.path.join(data_dir, "remind_data"), exist_ok=True)
+        self.data_file = os.path.join(data_dir, "remind_data", "remind_data.json")
 
         # 加载提醒数据
         self.reminder_data = load_reminder_data(self.data_file)
@@ -60,7 +60,7 @@ class Main(Star):
         logger.info(f"智能提醒插件启动成功，会话隔离：{'启用' if self.unique_session else '禁用'}")
 
         # 初始化提醒系统
-        self.reminder_system = ReminderSystem(context, self.config, self.scheduler_manager, self.tools, data_dir)
+        self.reminder_system = ReminderSystem(context, self.config, self.scheduler_manager, self.tools, self.data_file)
 
         self.cd = 10  # 默认冷却时间为 10 秒
         self.last_usage = {}  # 存储每个用户上次使用指令的时间

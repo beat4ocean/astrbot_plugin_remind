@@ -1,5 +1,5 @@
-name: astrbot_plugin_remind
-desc: 这是一个为 AstrBot 开发的智能提醒、任务插件
+name: plugin_remind
+desc: 智能提醒、任务插件
 version: v0.0.1
 author: beat4ocean
 

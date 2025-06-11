@@ -108,15 +108,15 @@ class ReminderSystem:
             reminder_str += "\n提醒：\n"
             for i, reminder in enumerate(reminders_list, 1):
                 if reminder.get("repeat") == "weekly_workday":
-                    repeat_str = "，每周工作日"
+                    repeat_str = "每周工作日"
                 elif reminder.get("repeat") == "weekly":
-                    repeat_str = "，每周"
+                    repeat_str = "每周"
                 elif reminder.get("repeat") == "daily":
-                    repeat_str = "，每天"
+                    repeat_str = "每天"
                 elif reminder.get("repeat") == "monthly":
-                    repeat_str = "，每月"
+                    repeat_str = "每月"
                 elif reminder.get("repeat") == "yearly":
-                    repeat_str = "，每年"
+                    repeat_str = "每年"
                 reminder_str += f"{i}. {reminder['text']} - {reminder['datetime']}，{repeat_str}\n"
 
         if tasks_list:
@@ -124,15 +124,15 @@ class ReminderSystem:
             for i, task in enumerate(tasks_list, 1):
                 repeat_str = ""
                 if task.get("repeat") == "weekly_workday":
-                    repeat_str = "，每周工作日"
+                    repeat_str = "每周工作日"
                 elif task.get("repeat") == "weekly":
-                    repeat_str = "，每周"
+                    repeat_str = "每周"
                 elif task.get("repeat") == "daily":
-                    repeat_str = "，每天"
+                    repeat_str = "每天"
                 elif task.get("repeat") == "monthly":
-                    repeat_str = "，每月"
+                    repeat_str = "每月"
                 elif task.get("repeat") == "yearly":
-                    repeat_str = "，每年"
+                    repeat_str = "每年"
                 reminder_str += f"{len(reminders_list) + i}. {task['text']} - {task['datetime']}，{repeat_str}\n"
 
         reminder_str += "\n使用 /si 删除 <序号> 删除提醒或任务"
@@ -185,7 +185,7 @@ class ReminderSystem:
                             break
 
             # 删除定时任务
-            job_id = f"reminder_{msg_origin}_{index - 1}"
+            job_id = f"remind_{msg_origin}_{index - 1}"
             try:
                 self.scheduler_manager.remove_job(job_id)
                 logger.info(f"Successfully removed job: {job_id}")
@@ -328,35 +328,35 @@ class ReminderSystem:
             # 根据重复类型和节假日类型生成文本说明
             repeat_str = "一次性"
             if repeat_type == "daily" and not holiday_type:
-                repeat_str = "，每天重复"
+                repeat_str = "每天重复"
             elif repeat_type == "daily" and holiday_type == "workday":
-                repeat_str = "，每个工作日重复（法定节假日不触发）"
+                repeat_str = "每个工作日重复且法定节假日不触发"
             elif repeat_type == "daily" and holiday_type == "holiday":
-                repeat_str = "，每个法定节假日重复"
+                repeat_str = "每个法定节假日重复"
             elif repeat_type == "weekly" and not holiday_type:
-                repeat_str = "，每周重复"
+                repeat_str = "每周重复"
             elif repeat_type == "weekly" and holiday_type == "workday":
-                repeat_str = "，每周的这一天重复，但仅工作日触发"
+                repeat_str = "每周的这一天重复且仅工作日触发"
             elif repeat_type == "weekly" and holiday_type == "holiday":
-                repeat_str = "，每周的这一天重复，但仅法定节假日触发"
+                repeat_str = "每周的这一天重复且仅法定节假日触发"
             elif repeat_type == "monthly" and not holiday_type:
-                repeat_str = "，每月重复"
+                repeat_str = "每月重复"
             elif repeat_type == "monthly" and holiday_type == "workday":
-                repeat_str = "，每月的这一天重复，但仅工作日触发"
+                repeat_str = "每月的这一天重复且仅工作日触发"
             elif repeat_type == "monthly" and holiday_type == "holiday":
-                repeat_str = "，每月的这一天重复，但仅法定节假日触发"
+                repeat_str = "每月的这一天重复且仅法定节假日触发"
             elif repeat_type == "yearly" and not holiday_type:
-                repeat_str = "，每年重复"
+                repeat_str = "每年重复"
             elif repeat_type == "yearly" and holiday_type == "workday":
-                repeat_str = "，每年的这一天重复，但仅工作日触发"
+                repeat_str = "每年的这一天重复且仅工作日触发"
             elif repeat_type == "yearly" and holiday_type == "holiday":
-                repeat_str = "，每年的这一天重复，但仅法定节假日触发"
+                repeat_str = "每年的这一天重复且仅法定节假日触发"
 
             ## 使用AI生成回复
             # provider = self.context.get_using_provider()
             # if provider:
             #    try:
-            #        prompt = f'用户设置了一个{"任务" if is_task else "提醒"}，内容为"{text}"，时间为{datetime_str}，{repeat_str}。请用自然的语言回复用户，确认设置成功。'
+            #        prompt = f'用户设置了一个{"任务" if is_task else "提醒"}，内容为"{text}"时间为{datetime_str}，{repeat_str}。请用自然的语言回复用户，确认设置成功。'
             #        response = await provider.text_chat(
             #            prompt=prompt,
             #            session_id=event.session_id,
@@ -368,11 +368,19 @@ class ReminderSystem:
             #        return f'好的，您的"{text}"已设置成功，时间为{datetime_str}，{repeat_str}。'
             # else:
             #    return f'好的，您的"{text}"已设置成功，时间为{datetime_str}，{repeat_str}。'
-            return event.plain_result(
-                f"已设置提醒:\n内容: {text}\n时间: {datetime_str}\n{start_str}{repeat_str}\n\n使用 /si 列表 查看所有提醒和任务")
+
+            if is_task:
+                return event.plain_result(
+                    f"已设置任务:\n内容: {text}\n时间: {datetime_str}\n{start_str} {repeat_str}\n\n使用 /si 列表 查看所有提醒和任务")
+            else:
+                return event.plain_result(
+                    f"已设置提醒:\n内容: {text}\n时间: {datetime_str}\n{start_str} {repeat_str}\n\n使用 /si 列表 查看所有提醒和任务")
         except Exception as e:
-            logger.error(f"添加提醒时出错: {str(e)}")
-            return event.plain_result(f"设置提醒时出错：{str(e)}")
+            if is_task:
+                return event.plain_result(f"设置任务时出错：{str(e)}")
+            else:
+                logger.error(f"设置提醒时出错: {str(e)}")
+                return event.plain_result(f"设置提醒时出错：{str(e)}")
 
     def get_help_text(self):
         return """

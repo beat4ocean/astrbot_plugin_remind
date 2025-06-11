@@ -21,14 +21,14 @@ from .core.tools import ReminderTools
 from .core.utils import load_reminder_data
 
 
-@register("astrbot_plugin_remind", "beat4ocean", "这是一个为 AstrBot 开发的智能提醒、任务插件", "0.0.1")
+@register("astrbot_plugin_remind", "beat4ocean", "智能提醒、任务插件", "0.0.1")
 class Main(Star):
     @classmethod
     def info(cls):
         return {
             "name": "astrbot_plugin_remind",
             "version": "0.0.1",
-            "description": "这是一个为 AstrBot 开发的智能提醒、任务插件",
+            "description": "智能提醒、任务插件",
             "author": "beat4ocean"
         }
 
@@ -38,8 +38,6 @@ class Main(Star):
         # 保存配置
         self.config = config or {}
         self.unique_session = self.config.get("unique_session", False)
-        self.enable_setu = self.config.get("enable_setu", True)
-        self.enable_server_status = self.config.get("enable_server_status", True)
 
         # 使用data目录下的数据文件，而非插件自身目录
         data_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))), "data")
@@ -104,8 +102,8 @@ class Main(Star):
         result = await self.reminder_system.add_reminder(event, text, time_str, week, repeat_type, holiday_type, True)
         return result
 
-    @si.command("help")
-    async def show_help(self, event: AstrMessageEvent):
+    @si.command("帮助")
+    async def show_help(self):
         '''显示帮助信息'''
         help_text = self.reminder_system.get_help_text()
         return help_text
@@ -128,7 +126,7 @@ class Main(Star):
         try:
             # 调用工具类设置提醒
             result = await self.tools.set_reminder(event, text, datetime_str, user_name, repeat_type, holiday_type)
-            logger.info(f"设置提醒结果: {result}")
+            logger.info(f"设置提醒结果:\n{result}")
             return result
 
         except Exception as e:
@@ -152,7 +150,7 @@ class Main(Star):
 
             # 调用工具类设置任务
             result = await self.tools.set_task(event, text, datetime_str, repeat_type, holiday_type)
-            logger.info(f"设置任务结果: {result}")
+            logger.info(f"设置任务结果:\n{result}")
             return result
 
         except Exception as e:

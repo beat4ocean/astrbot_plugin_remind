@@ -61,6 +61,7 @@ class ReminderTools:
         '''设置一个提醒
         
         Args:
+            event:
             text(string): 提醒内容
             datetime_str(string): 提醒时间，格式为 %Y-%m-%d %H:%M
             user_name(string): 提醒对象名称，默认为"用户"
@@ -68,19 +69,36 @@ class ReminderTools:
             holiday_type(string): 可选，节假日类型：workday(仅工作日执行)，holiday(仅法定节假日执行)
         '''
         try:
-            if isinstance(event, Context):
-                msg_origin = self.context.get_event_queue()._queue[0].session_id
-                creator_id = None  # Context 模式下无法获取创建者ID
-                creator_name = None
-            else:
-                raw_msg_origin = event.unified_msg_origin
-                creator_id = event.get_sender_id()
-                # 获取创建者昵称
-                creator_name = event.message_obj.sender.nickname if hasattr(event.message_obj, 'sender') and hasattr(
-                    event.message_obj.sender, 'nickname') else None
+            # 获取用户ID
+            creator_id = None
+            creator_name = "用户"
 
-                # 使用会话隔离功能获取会话ID
-                msg_origin = self.get_session_id(raw_msg_origin, creator_id)
+            # 尝试多种方式获取用户ID和昵称
+            if hasattr(event, 'get_user_id'):
+                creator_id = event.get_user_id()
+            elif hasattr(event, 'get_sender_id'):
+                creator_id = event.get_sender_id()
+            elif hasattr(event, 'sender') and hasattr(event.sender, 'user_id'):
+                creator_id = event.sender.user_id
+            elif hasattr(event.message_obj, 'sender'):
+                creator_id = getattr(event.message_obj.sender, 'user_id', None)
+
+            # 尝试多种方式获取用户昵称
+            if hasattr(event, 'get_sender'):
+                sender = event.get_sender()
+                if isinstance(sender, dict):
+                    creator_name = sender.get("nickname", creator_name)
+                elif hasattr(sender, 'nickname'):
+                    creator_name = sender.nickname or creator_name
+            elif hasattr(event.message_obj, 'sender'):
+                sender = event.message_obj.sender
+                if isinstance(sender, dict):
+                    creator_name = sender.get("nickname", creator_name)
+                elif hasattr(sender, 'nickname'):
+                    creator_name = sender.nickname or creator_name
+
+            # 使用 get_session_id 获取正确的会话ID
+            msg_origin = self.get_session_id(event.unified_msg_origin, creator_id)
 
             # 解析时间
             try:
@@ -127,49 +145,42 @@ class ReminderTools:
                 self.reminder_data[msg_origin] = []
             self.reminder_data[msg_origin].append(reminder)
 
-            # 确保更新到 star_instance
-            self.star.reminder_data = self.reminder_data
-
-            # 设置定时任务
-            job_result = self.scheduler_manager.add_job(msg_origin, reminder, dt)
-            if not job_result:
-                logger.error("添加定时提醒失败")
-                return "设置提醒失败：无法添加定时提醒"
+            # 添加定时任务
+            if not self.scheduler_manager.add_job(msg_origin, reminder, dt):
+                return event.plain_result(f"添加定时任务失败")
 
             # 保存提醒数据
-            save_result = await save_reminder_data(self.data_file, self.reminder_data)
-            if not save_result:
-                logger.error("保存提醒数据失败")
-                return "设置提醒失败：无法保存提醒数据"
+            if not await save_reminder_data(self.data_file, self.reminder_data):
+                return event.plain_result(f"保存提醒数据失败")
 
             # 构建提示信息
             repeat_str = "一次性"
             if repeat_type == "daily" and not holiday_type:
-                repeat_str = "，每天重复"
+                repeat_str = "每天重复"
             elif repeat_type == "daily" and holiday_type == "workday":
-                repeat_str = "，每个工作日重复（法定节假日不触发）"
+                repeat_str = "每个工作日重复且法定节假日不触发"
             elif repeat_type == "daily" and holiday_type == "holiday":
-                repeat_str = "，每个法定节假日重复"
+                repeat_str = "每个法定节假日重复"
             elif repeat_type == "weekly" and not holiday_type:
-                repeat_str = "，每周重复"
+                repeat_str = "每周重复"
             elif repeat_type == "weekly" and holiday_type == "workday":
-                repeat_str = "，每周的这一天重复，但仅工作日触发"
+                repeat_str = "每周的这一天重复且仅工作日触发"
             elif repeat_type == "weekly" and holiday_type == "holiday":
-                repeat_str = "，每周的这一天重复，但仅法定节假日触发"
+                repeat_str = "每周的这一天重复且仅法定节假日触发"
             elif repeat_type == "monthly" and not holiday_type:
-                repeat_str = "，每月重复"
+                repeat_str = "每月重复"
             elif repeat_type == "monthly" and holiday_type == "workday":
-                repeat_str = "，每月的这一天重复，但仅工作日触发"
+                repeat_str = "每月的这一天重复且仅工作日触发"
             elif repeat_type == "monthly" and holiday_type == "holiday":
-                repeat_str = "，每月的这一天重复，但仅法定节假日触发"
+                repeat_str = "每月的这一天重复且仅法定节假日触发"
             elif repeat_type == "yearly" and not holiday_type:
-                repeat_str = "，每年重复"
+                repeat_str = "每年重复"
             elif repeat_type == "yearly" and holiday_type == "workday":
-                repeat_str = "，每年的这一天重复，但仅工作日触发"
+                repeat_str = "每年的这一天重复且仅工作日触发"
             elif repeat_type == "yearly" and holiday_type == "holiday":
-                repeat_str = "，每年的这一天重复，但仅法定节假日触发"
+                repeat_str = "每年的这一天重复且仅法定节假日触发"
 
-            return f"已设置提醒:\n内容: {text}\n时间: {datetime_str}{repeat_str}\n\n使用 /si 列表 查看所有提醒"
+            return f"已设置提醒:\n内容: {text}\n时间: {datetime_str} {repeat_str}\n\n使用 /si 列表 查看所有提醒"
 
         except Exception as e:
             logger.error(f"设置提醒时出错: {str(e)}")
@@ -186,19 +197,36 @@ class ReminderTools:
             holiday_type(string): 可选，节假日类型：workday(仅工作日执行)，holiday(仅法定节假日执行)
         '''
         try:
-            if isinstance(event, Context):
-                msg_origin = self.context.get_event_queue()._queue[0].session_id
-                creator_id = None  # Context 模式下无法获取创建者ID
-                creator_name = None
-            else:
-                raw_msg_origin = event.unified_msg_origin
-                creator_id = event.get_sender_id()
-                # 获取创建者昵称
-                creator_name = event.message_obj.sender.nickname if hasattr(event.message_obj, 'sender') and hasattr(
-                    event.message_obj.sender, 'nickname') else None
+            # 获取用户ID
+            creator_id = None
+            creator_name = "用户"
 
-                # 使用会话隔离功能获取会话ID
-                msg_origin = self.get_session_id(raw_msg_origin, creator_id)
+            # 尝试多种方式获取用户ID和昵称
+            if hasattr(event, 'get_user_id'):
+                creator_id = event.get_user_id()
+            elif hasattr(event, 'get_sender_id'):
+                creator_id = event.get_sender_id()
+            elif hasattr(event, 'sender') and hasattr(event.sender, 'user_id'):
+                creator_id = event.sender.user_id
+            elif hasattr(event.message_obj, 'sender'):
+                creator_id = getattr(event.message_obj.sender, 'user_id', None)
+
+            # 尝试多种方式获取用户昵称
+            if hasattr(event, 'get_sender'):
+                sender = event.get_sender()
+                if isinstance(sender, dict):
+                    creator_name = sender.get("nickname", creator_name)
+                elif hasattr(sender, 'nickname'):
+                    creator_name = sender.nickname or creator_name
+            elif hasattr(event.message_obj, 'sender'):
+                sender = event.message_obj.sender
+                if isinstance(sender, dict):
+                    creator_name = sender.get("nickname", creator_name)
+                elif hasattr(sender, 'nickname'):
+                    creator_name = sender.nickname or creator_name
+
+            # 使用 get_session_id 获取正确的会话ID
+            msg_origin = self.get_session_id(event.unified_msg_origin, creator_id)
 
             # 解析时间
             try:
@@ -233,7 +261,7 @@ class ReminderTools:
             task = {
                 "text": text,
                 "datetime": datetime_str,
-                "user_name": "用户",  # 任务模式下不需要特别指定用户名
+                "user_name": creator_id or "用户",
                 "repeat": final_repeat_type,
                 "creator_id": creator_id,
                 "creator_name": creator_name,
@@ -245,49 +273,42 @@ class ReminderTools:
                 self.reminder_data[msg_origin] = []
             self.reminder_data[msg_origin].append(task)
 
-            # 确保更新到 star_instance
-            self.star.reminder_data = self.reminder_data
-
-            # 设置定时任务
-            job_result = self.scheduler_manager.add_job(msg_origin, task, dt)
-            if not job_result:
-                logger.error("添加定时任务失败")
-                return "设置任务失败：无法添加定时任务"
+            # 添加定时任务
+            if not self.scheduler_manager.add_job(msg_origin, task, dt):
+                return event.plain_result(f"添加定时任务失败")
 
             # 保存提醒数据
-            save_result = await save_reminder_data(self.data_file, self.reminder_data)
-            if not save_result:
-                logger.error("保存任务数据失败")
-                return "设置任务失败：无法保存任务数据"
+            if not await save_reminder_data(self.data_file, self.reminder_data):
+                return event.plain_result(f"保存提醒数据失败")
 
             # 构建提示信息
             repeat_str = "一次性"
             if repeat_type == "daily" and not holiday_type:
-                repeat_str = "，每天重复"
+                repeat_str = "每天重复"
             elif repeat_type == "daily" and holiday_type == "workday":
-                repeat_str = "，每个工作日重复（法定节假日不触发）"
+                repeat_str = "每个工作日重复且法定节假日不触发"
             elif repeat_type == "daily" and holiday_type == "holiday":
-                repeat_str = "，每个法定节假日重复"
+                repeat_str = "每个法定节假日重复"
             elif repeat_type == "weekly" and not holiday_type:
-                repeat_str = "，每周重复"
+                repeat_str = "每周重复"
             elif repeat_type == "weekly" and holiday_type == "workday":
-                repeat_str = "，每周的这一天重复，但仅工作日触发"
+                repeat_str = "每周的这一天重复且仅工作日触发"
             elif repeat_type == "weekly" and holiday_type == "holiday":
-                repeat_str = "，每周的这一天重复，但仅法定节假日触发"
+                repeat_str = "每周的这一天重复且仅法定节假日触发"
             elif repeat_type == "monthly" and not holiday_type:
-                repeat_str = "，每月重复"
+                repeat_str = "每月重复"
             elif repeat_type == "monthly" and holiday_type == "workday":
-                repeat_str = "，每月的这一天重复，但仅工作日触发"
+                repeat_str = "每月的这一天重复且仅工作日触发"
             elif repeat_type == "monthly" and holiday_type == "holiday":
-                repeat_str = "，每月的这一天重复，但仅法定节假日触发"
+                repeat_str = "每月的这一天重复且仅法定节假日触发"
             elif repeat_type == "yearly" and not holiday_type:
-                repeat_str = "，每年重复"
+                repeat_str = "每年重复"
             elif repeat_type == "yearly" and holiday_type == "workday":
-                repeat_str = "，每年的这一天重复，但仅工作日触发"
+                repeat_str = "每年的这一天重复且仅工作日触发"
             elif repeat_type == "yearly" and holiday_type == "holiday":
-                repeat_str = "，每年的这一天重复，但仅法定节假日触发"
+                repeat_str = "每年的这一天重复且仅法定节假日触发"
 
-            return f"已设置任务:\n内容: {text}\n时间: {datetime_str}{repeat_str}\n\n使用 /si 列表 查看所有任务"
+            return f"已设置任务:\n内容: {text}\n时间: {datetime_str} {repeat_str}\n\n使用 /si 列表 查看所有任务"
 
         except Exception as e:
             logger.error(f"设置任务时出错: {str(e)}")
@@ -301,7 +322,7 @@ class ReminderTools:
                               date: str = None,  # 具体日期 YYYY-MM-DD
                               all: str = None,  # 是否删除所有 "yes"/"no"
                               task_only: str = "no",  # 是否只删除任务
-                              reminder_only: str = "no"  # 是否只删除提醒
+                              remind_only: str = "no"  # 是否只删除提醒
                               ):
         '''删除符合条件的提醒或者任务，可组合多个条件进行精确筛选
         
@@ -313,7 +334,7 @@ class ReminderTools:
             date(string): 可选，具体日期，格式为 YYYY-MM-DD，如 "2024-02-09"
             all(string): 可选，是否删除所有提醒，可选值：yes/no，默认no
             task_only(string): 可选，是否只删除任务，可选值：yes/no，默认no
-            reminder_only(string): 可选，是否只删除提醒，可选值：yes/no，默认no
+            remind_only(string): 可选，是否只删除提醒，可选值：yes/no，默认no
         '''
         try:
             if isinstance(event, Context):
@@ -354,11 +375,11 @@ class ReminderTools:
 
                 # 检查是否只删除任务或只删除提醒
                 is_task_only = task_only and task_only.lower() == "yes"
-                is_reminder_only = reminder_only and reminder_only.lower() == "yes"
+                is_remind_only = remind_only and remind_only.lower() == "yes"
 
                 if is_task_only and not reminder.get("is_task", False):
                     continue
-                if is_reminder_only and reminder.get("is_task", False):
+                if is_remind_only and reminder.get("is_task", False):
                     continue
 
                 # 如果指定删除所有，直接添加
@@ -399,8 +420,8 @@ class ReminderTools:
 
                 # 检查具体日期
                 if date:
-                    reminder_date = dt.strftime("%Y-%m-%d")
-                    if reminder_date != date:
+                    remind_date = dt.strftime("%Y-%m-%d")
+                    if remind_date != date:
                         match = False
 
                 # 如果所有条件都满足，添加到删除列表
@@ -421,7 +442,7 @@ class ReminderTools:
                     conditions.append(f"日期为{date}")
                 if task_only:
                     conditions.append("仅任务")
-                if reminder_only:
+                if remind_only:
                     conditions.append("仅提醒")
                 return f"没有找到符合条件的提醒或任务：{', '.join(conditions)}"
 
@@ -489,5 +510,5 @@ class ReminderTools:
                 return result
 
         except Exception as e:
-            logger.error(f"删除提醒时出错: {str(e)}")
+            logger.error(f"删除提醒或任务时出错: {str(e)}")
             return f"删除提醒或任务时出错：{str(e)}"

@@ -126,7 +126,7 @@ class ReminderScheduler:
 
                 # 生成唯一的任务ID，添加时间戳确保唯一性
                 timestamp = datetime.datetime.now().strftime("%Y%m%d%H%M%S")
-                job_id = f"reminder_{group}_{i}_{timestamp}"
+                job_id = f"remind_{group}_{i}_{timestamp}"
 
                 # 根据重复类型设置不同的触发器
                 if reminder.get("repeat") == "daily":
@@ -178,12 +178,12 @@ class ReminderScheduler:
                     logger.info(
                         f"添加每周提醒: {reminder['text']} 时间: 每周{dt.weekday() + 1} {dt.hour}:{dt.minute} ID: {job_id}")
                 elif reminder.get("repeat") == "weekly_workday":
-                    # 每周的这一天，但仅工作日执行
+                    # 每周的这一天且仅工作日执行
                     self.scheduler.add_job(
                         self._check_and_execute_workday,
                         'cron',
                         args=[group, reminder],
-                        day_of_week=dt.weekday(),  # 保留这个限制，因为"每周"需要指定星期几
+                        day_of_week=dt.weekday(),
                         hour=dt.hour,
                         minute=dt.minute,
                         misfire_grace_time=60,
@@ -192,7 +192,7 @@ class ReminderScheduler:
                     logger.info(
                         f"添加每周工作日提醒: {reminder['text']} 时间: 每周{dt.weekday() + 1} {dt.hour}:{dt.minute} ID: {job_id}")
                 elif reminder.get("repeat") == "weekly_holiday":
-                    # 每周的这一天，但仅法定节假日执行
+                    # 每周的这一天且仅法定节假日执行
                     self.scheduler.add_job(
                         self._check_and_execute_holiday,
                         'cron',
@@ -219,7 +219,7 @@ class ReminderScheduler:
                     logger.info(
                         f"添加每月提醒: {reminder['text']} 时间: 每月{dt.day}日 {dt.hour}:{dt.minute} ID: {job_id}")
                 elif reminder.get("repeat") == "monthly_workday":
-                    # 每月的这一天，但仅工作日执行
+                    # 每月的这一天且仅工作日执行
                     self.scheduler.add_job(
                         self._check_and_execute_workday,
                         'cron',
@@ -233,7 +233,7 @@ class ReminderScheduler:
                     logger.info(
                         f"添加每月工作日提醒: {reminder['text']} 时间: 每月{dt.day}日 {dt.hour}:{dt.minute} ID: {job_id}")
                 elif reminder.get("repeat") == "monthly_holiday":
-                    # 每月的这一天，但仅法定节假日执行
+                    # 每月的这一天且仅法定节假日执行
                     self.scheduler.add_job(
                         self._check_and_execute_holiday,
                         'cron',
@@ -261,7 +261,7 @@ class ReminderScheduler:
                     logger.info(
                         f"添加每年提醒: {reminder['text']} 时间: 每年{dt.month}月{dt.day}日 {dt.hour}:{dt.minute} ID: {job_id}")
                 elif reminder.get("repeat") == "yearly_workday":
-                    # 每年的这一天，但仅工作日执行
+                    # 每年的这一天且仅工作日执行
                     self.scheduler.add_job(
                         self._check_and_execute_workday,
                         'cron',
@@ -276,7 +276,7 @@ class ReminderScheduler:
                     logger.info(
                         f"添加每年工作日提醒: {reminder['text']} 时间: 每年{dt.month}月{dt.day}日 {dt.hour}:{dt.minute} ID: {job_id}")
                 elif reminder.get("repeat") == "yearly_holiday":
-                    # 每年的这一天，但仅法定节假日执行
+                    # 每年的这一天且仅法定节假日执行
                     self.scheduler.add_job(
                         self._check_and_execute_holiday,
                         'cron',
@@ -334,7 +334,7 @@ class ReminderScheduler:
 
     async def _reminder_callback(self, unified_msg_origin: str, reminder: dict):
         '''提醒回调函数'''
-        global message_chain
+        global message_chain, target_session_id, curr_cid, conversation
         try:
             # 获取当前时间
             current_time = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
@@ -441,7 +441,7 @@ class ReminderScheduler:
                 message_chain = MessageChain([Plain(f"⏰ 提醒：{task_text}")])
 
             if not message_chain:
-                logger.error("message_chain is empty after creation")
+                logger.error("消息链为空")
                 message_chain = MessageChain([Plain(f"⏰ 提醒：{task_text}")])
 
             # 发送消息
@@ -532,9 +532,11 @@ class ReminderScheduler:
             bool: 是否成功添加任务
         '''
         try:
-            # 生成唯一的任务ID，添加时间戳确保唯一性
-            timestamp = datetime.datetime.now().strftime("%Y%m%d%H%M%S")
-            job_id = f"reminder_{msg_origin}_{timestamp}"
+            # # 生成唯一的任务ID，添加时间戳确保唯一性
+            # timestamp = datetime.datetime.now().strftime("%Y%m%d%H%M%S")
+            # job_id = f"remind_{msg_origin}_{timestamp}"
+            # 生成唯一的任务ID
+            job_id = f"remind_{msg_origin}_{len(self.reminder_data[msg_origin])-1}"
 
             # 根据重复类型设置不同的触发器
             if reminder.get("repeat") == "none":
@@ -558,7 +560,7 @@ class ReminderScheduler:
                     id=job_id
                 )
                 logger.info(f"添加每日提醒: {reminder['text']} 时间: {dt.hour}:{dt.minute} ID: {job_id}")
-            elif reminder.get("repeat") == "daily_holiday":
+            elif reminder.get("repeat") == "daily_workday":
                 self.scheduler.add_job(
                     self._check_and_execute_workday,
                     'cron',

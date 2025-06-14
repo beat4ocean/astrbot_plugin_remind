@@ -1,68 +1,119 @@
 import datetime
 import json
 import os
+import re
 import aiohttp
 from astrbot.api import logger
 from astrbot.api.star import StarTools
 
 
 def parse_datetime(datetime_str: str, week: str = None) -> str:
-    '''解析时间字符串，支持简单时间格式，可选择星期
-    
-    Args:
-        datetime_str: 时间字符串，格式为 HH:MM 或 HHMM
-        week: 星期几，可选值：周日,周一,周二,周三,周四,周五,周六
-    '''
-    try:
-        today = datetime.datetime.now()
+    """
+    解析各种格式的时间字符串，并根据需要计算未来的日期时间。
 
-        # 处理输入字符串，去除多余空格
+    这个增强版本支持更灵活的时间输入格式，并提供了更清晰的错误处理。
+
+    支持的格式:
+    - 标准格式: "08:20", "8:20"
+    - 无分隔符: "0820", "820" (会补全为 "0820")
+    - 中文格式: "8点20", "8点" (无分钟数则默认为0分)
+    - 上下午指示: "上午8点20", "下午3点", "晚上8点"
+
+    Args:
+        datetime_str: 时间字符串。
+        week: 星期几，可选值，不区分大小写和前后空格。
+              中文: 周一, 周二, 周三, 周四, 周五, 周六, 周日
+              英文: mon, tue, wed, thu, fri, sat, sun
+
+    Returns:
+        一个格式为 'YYYY-MM-DD HH:MM' 的未来日期时间字符串。
+
+    Raises:
+        ValueError: 如果时间或星期格式无效或无法解析。
+    """
+    try:
+        # --- 1. 初始化和预处理 ---
+        today = datetime.datetime.now()
         datetime_str = datetime_str.strip()
 
-        # 解析时间
-        try:
-            hour, minute = map(int, datetime_str.split(':'))
-        except ValueError:
-            try:
-                # 尝试处理无冒号格式 (如 "0805")
-                if len(datetime_str) == 4:
-                    hour = int(datetime_str[:2])
-                    minute = int(datetime_str[2:])
-                else:
-                    raise ValueError()
-            except:
-                raise ValueError("时间格式错误，请使用 HH:MM 格式（如 8:05）或 HHMM 格式（如 0805）")
+        # --- 2. 解析时间字符串 ---
+        # 优先尝试匹配 "HHMM" 或 "HMM" (如 "820") 格式
+        if datetime_str.isdigit() and len(datetime_str) in [3, 4]:
+            hhmm_str = datetime_str.zfill(4)  # "820" -> "0820"
+            hour = int(hhmm_str[:2])
+            minute = int(hhmm_str[2:])
+        else:
+            # 否则，使用正则表达式匹配更复杂的格式
+            # 模式解释:
+            # ^...$            - 匹配整个字符串
+            # (?P<am_pm>...)   - 捕获组: 早上/上午/下午/晚上 (可选)
+            # (?P<hour>\d{1,2}) - 捕获组: 小时
+            # (?:...)?         - 非捕获组: 分钟部分 (可选)
+            pattern = re.compile(
+                r"^(?P<am_pm>早上|上午|下午|晚上)?\s*"
+                r"(?P<hour>\d{1,2})\s*"
+                r"(?:[:：点]\s*(?P<minute>\d{1,2}))?\s*$"
+            )
+            match = pattern.match(datetime_str)
 
+            if not match:
+                raise ValueError(f"无法识别的时间格式: '{datetime_str}'")
+
+            groups = match.groupdict()
+            am_pm = groups.get('am_pm')
+            hour = int(groups['hour'])
+            minute = int(groups['minute']) if groups['minute'] else 0
+
+            # --- 3. 根据上午/下午调整小时 ---
+            if am_pm in ['下午', '晚上']:
+                if 1 <= hour < 12:
+                    hour += 12
+            # elif am_pm == ['早上', '上午']:
+            #     if hour == 12:
+            #         hour = 0
+
+        # --- 4. 验证时间范围 ---
         if not (0 <= hour <= 23 and 0 <= minute <= 59):
-            raise ValueError("时间超出范围")
+            raise ValueError(f"时间值超出范围: {hour}:{minute}")
 
-        # 设置时间
+        # --- 5. 创建初始 datetime 对象 ---
         dt = today.replace(hour=hour, minute=minute, second=0, microsecond=0)
 
-        # 如果指定了星期几
+        # --- 6. 如果指定了星期，计算目标日期 ---
         if week:
-            week_map = {'mon': 0, 'tue': 1, 'wed': 2, 'thu': 3, 'fri': 4, 'sat': 5, 'sun': 6}
-            if week and week.lower() not in week_map:
-                raise ValueError("星期格式错误，可选值：mon,tue,wed,thu,fri,sat,sun")
-            # 计算目标日期
-            current_weekday = dt.weekday()
-            target_weekday = week_map[week]
+            week_map = {
+                '周一': 0, 'mon': 0, 'monday': 0,
+                '周二': 1, 'tue': 1, 'tuesday': 1,
+                '周三': 2, 'wed': 2, 'wednesday': 2,
+                '周四': 3, 'thu': 3, 'thursday': 3,
+                '周五': 4, 'fri': 4, 'friday': 4,
+                '周六': 5, 'sat': 5, 'saturday': 5,
+                '周日': 6, 'sun': 6, 'sunday': 6,
+            }
+            week_clean = week.strip().lower()
+            if week_clean not in week_map:
+                raise ValueError(f"无效的星期格式: '{week}'")
+
+            target_weekday = week_map[week_clean]
+            current_weekday = dt.weekday()  # Monday is 0 and Sunday is 6
             days_ahead = target_weekday - current_weekday
-            # 修正逻辑：只有在今天时间已过才跳到下周，否则就是本周
+
+            # 如果目标日期在今天之前，或者就是今天但时间已过，则安排在下周
             if days_ahead < 0 or (days_ahead == 0 and dt <= today):
                 days_ahead += 7
-            dt = dt + datetime.timedelta(days=days_ahead)
-        # 如果没有指定星期几，且时间已过，设置为明天
+
+            dt += datetime.timedelta(days=days_ahead)
+
+        # --- 7. 如果未指定星期且时间已过，则安排在明天 ---
         elif dt <= today:
-            dt = dt + datetime.timedelta(days=1)
+            dt += datetime.timedelta(days=1)
             logger.info(f"设置的时间已过，自动调整为明天: {dt.strftime('%Y-%m-%d %H:%M')}")
 
+        # --- 8. 返回格式化结果 ---
         return dt.strftime("%Y-%m-%d %H:%M")
 
-    except Exception as e:
-        if isinstance(e, ValueError):
-            raise e
-        raise ValueError("时间格式错误，请使用 HH:MM 格式（如 8:05）或 HHMM 格式（如 0805）")
+    except (ValueError, TypeError) as e:
+        raise ValueError("输入错误！：" + str(e)) from e
 
 
 def is_outdated(reminder: dict) -> bool:

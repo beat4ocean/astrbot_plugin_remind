@@ -5,5 +5,45 @@
     "hint": "启用后，在群组或频道中，每个人的提醒和任务都是独立的。不同用户之间无法看到和操作对方的提醒和任务。",
     "obvious_hint": true,
     "default": false
+  },
+  "all_user_reminds": {
+    "description": "全员定时提醒功能",
+    "type": "list",
+    "item_type": "dict",
+    "item_schema": {
+      "content": {
+        "type": "string",
+        "description": "提醒的具体内容",
+        "default": "这是一个提醒示例"
+      },
+      "datetime": {
+        "type": "string",
+        "description": "提醒时间，格式为 'HH:MM'",
+        "default": "09:00"
+      },
+      "repeat_type": {
+        "type": "string",
+        "description": "重复类型",
+        "enum": [
+          "daily",
+          "weekly",
+          "monthly",
+          "yearly"
+        ],
+        "default": "daily"
+      },
+      "holiday_type": {
+        "type": "string",
+        "description": "节假日触发类型",
+        "enum": [
+          "none",
+          "workday",
+          "holiday"
+        ],
+        "default": "workday"
+      }
+    },
+    "hint": "设置多个全员定时提醒。repeat_type可选：daily(每天), weekly(每周), monthly(每月), yearly(每年)。holiday_type可选：none(不关心节假日), workday(仅工作日), holiday(仅节假日)。示例：\n{\"content\":\"上班打卡提醒\",\"datetime\":\"08:30\",\"repeat_type\":\"daily\",\"holiday_type\":\"workday\"}",
+    "default": []
   }
 }

@@ -38,9 +38,11 @@ class Main(Star):
         # 保存配置
         self.config = config or {}
         self.unique_session = self.config.get("unique_session", False)
+        # 新增：获取全员提醒配置
+        self.all_user_reminds = self.config.get("all_user_reminds", [])
 
         # 使用data目录下的数据文件，而非插件自身目录
-        data_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))), "data")
+        data_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))), "astrbot_plugin_remind")
         # 确保目录存在
         os.makedirs(os.path.join(data_dir, "remind_data"), exist_ok=True)
         self.data_file = os.path.join(data_dir, "remind_data", "remind_data.json")
@@ -48,14 +50,16 @@ class Main(Star):
         # 加载提醒数据
         self.reminder_data = load_reminder_data(self.data_file)
 
-        # 初始化调度器
-        self.scheduler_manager = ReminderScheduler(context, self.reminder_data, self.data_file, self.unique_session)
+        # 初始化调度器，并传入全员提醒配置
+        self.scheduler_manager = ReminderScheduler(context, self.reminder_data, self.data_file, self.unique_session, self.all_user_reminds)
 
         # 初始化工具
         self.tools = ReminderTools(self)
 
         # 记录配置信息
         logger.info(f"智能提醒插件启动成功，会话隔离：{'启用' if self.unique_session else '禁用'}")
+        if self.all_user_reminds:
+            logger.info(f"已加载 {len(self.all_user_reminds)} 个全员提醒。")
 
         # 初始化提醒系统
         self.reminder_system = ReminderSystem(context, self.config, self.scheduler_manager, self.tools, self.data_file)
@@ -110,19 +114,6 @@ class Main(Star):
     # ========== 命令行结束 ==========
 
     # ========== LLM 开始 ==========
-    @filter.llm_tool(name="query_reminder")
-    async def query_reminder(self, event: AstrMessageEvent):
-        '''查询所有提醒和任务'''
-        try:
-            # 调用工具类设置提醒
-            result = await self.reminder_system.list_reminders(event)
-            logger.info(f"查询任务和提醒结果:\n{result[:50]}...")
-            return result
-
-        except Exception as e:
-            logger.error(f"查询任务和提醒时出错: {str(e)}")
-            return f"查询任务和提醒失败：{str(e)}"
-
     @filter.llm_tool(name="set_reminder")
     async def set_reminder(self, event, text: str, datetime_str: str, user_name: str = "用户", repeat_type: str = None,
                            holiday_type: str = None):

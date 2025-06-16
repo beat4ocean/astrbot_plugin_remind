@@ -231,7 +231,7 @@ async def save_reminder_data(data_file: str, reminder_data: dict) -> bool:
 class HolidayManager:
     def __init__(self):
         # 确保目录存在
-        data_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))), "data")
+        data_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))), "astrbot_plugin_remind")
         os.makedirs(os.path.join(data_dir, "holiday_data"), exist_ok=True)
         self.holiday_cache_file = os.path.join(data_dir, "holiday_data", "holiday_cache.json")
         self.holiday_data = self._load_holiday_data()

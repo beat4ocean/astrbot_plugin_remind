@@ -114,9 +114,22 @@ class Main(Star):
     # ========== 命令行结束 ==========
 
     # ========== LLM 开始 ==========
+    @filter.llm_tool(name="query_reminder")
+    async def query_reminder(self, event: AstrMessageEvent):
+        '''查询所有提醒和任务'''
+        try:
+            # 调用工具类设置提醒
+            result = await self.reminder_system.list_reminders(event)
+            logger.info(f"查询任务和提醒结果:\n{result[:50]}...")
+            return result
+
+        except Exception as e:
+            logger.error(f"查询任务和提醒时出错: {str(e)}")
+            return f"查询任务和提醒失败：{str(e)}"
+
     @filter.llm_tool(name="set_reminder")
-    async def set_reminder(self, event, text: str, datetime_str: str, user_name: str = "用户", repeat_type: str = None,
-                           holiday_type: str = None):
+    async def set_reminder(self, event: AstrMessageEvent, text: str, datetime_str: str, user_name: str = "用户",
+                           repeat_type: str = None, holiday_type: str = None):
         '''设置一个提醒，到时间时会提醒用户
 
         Args:
@@ -137,7 +150,8 @@ class Main(Star):
             return f"设置提醒失败：{str(e)}"
 
     @filter.llm_tool(name="set_task")
-    async def set_task(self, event, text: str, datetime_str: str, repeat_type: str = None, holiday_type: str = None):
+    async def set_task(self, event: AstrMessageEvent, text: str, datetime_str: str, repeat_type: str = None,
+                       holiday_type: str = None):
         '''设置一个任务，到时间后会让AI执行该任务
         
         Args:

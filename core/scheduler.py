@@ -776,11 +776,11 @@ class ReminderScheduler:
             bool: 是否成功添加任务
         '''
         try:
-            # # 生成唯一的任务ID，添加时间戳确保唯一性
-            # timestamp = datetime.datetime.now().strftime("%Y%m%d%H%M%S")
-            # job_id = f"remind_{msg_origin}_{timestamp}"
-            # 生成唯一的任务ID
-            job_id = f"remind_{msg_origin}_{len(self.reminder_data.get(msg_origin, [])) - 1}"
+            # # 生成唯一的任务ID
+            # job_id = f"remind_{msg_origin}_{len(self.reminder_data.get(msg_origin, [])) - 1}"
+            # 生成唯一的任务ID，添加时间戳确保唯一性
+            timestamp = datetime.datetime.now().strftime("%Y%m%d%H%M%S")
+            job_id = f"remind_{msg_origin}_{timestamp}"
 
             repeat_type = reminder.get("repeat_type")
             holiday_type = reminder.get("holiday_type")

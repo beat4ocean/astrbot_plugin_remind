@@ -15,7 +15,7 @@ from .database import PostgresManager
 postgres_manager = None
 
 
-def parse_datetime(date_time: str, week: str = None) -> str:
+def parse_datetime(datetime_str: str, week: str = None) -> str:
     """
     解析各种格式的时间字符串，并根据需要计算未来的日期时间。
 
@@ -28,7 +28,7 @@ def parse_datetime(date_time: str, week: str = None) -> str:
     - 上下午指示: "上午8点20", "下午3点", "晚上8点"
 
     Args:
-        date_time: 时间字符串。
+        datetime_str: 时间字符串。
         week: 星期几，可选值，不区分大小写和前后空格。
               中文: 周一, 周二, 周三, 周四, 周五, 周六, 周日
               英文: mon, tue, wed, thu, fri, sat, sun
@@ -42,12 +42,22 @@ def parse_datetime(date_time: str, week: str = None) -> str:
     try:
         # --- 1. 初始化和预处理 ---
         today = datetime.datetime.now()
-        date_time = date_time.strip()
+        datetime_str = datetime_str.strip()
 
-        # --- 2. 解析时间字符串 ---
+        # --- 2. 首先检查是否是完整的日期时间格式 "YYYY-MM-DD HH:MM" ---
+        try:
+            dt = datetime.datetime.strptime(datetime_str, "%Y-%m-%d %H:%M")
+            # 如果日期时间已经过去，则不需要调整
+            if dt > today:
+                return dt.strftime("%Y-%m-%d %H:%M")
+            # 否则继续处理，可能根据week参数调整
+        except ValueError:
+            pass  # 不是完整日期时间格式，继续其他格式的解析
+
+        # --- 3. 解析时间字符串 ---
         # 优先尝试匹配 "HHMM" 或 "HMM" (如 "820") 格式
-        if date_time.isdigit() and len(date_time) in [3, 4]:
-            hhmm_str = date_time.zfill(4)  # "820" -> "0820"
+        if datetime_str.isdigit() and len(datetime_str) in [3, 4]:
+            hhmm_str = datetime_str.zfill(4)  # "820" -> "0820"
             hour = int(hhmm_str[:2])
             minute = int(hhmm_str[2:])
         else:
@@ -58,36 +68,39 @@ def parse_datetime(date_time: str, week: str = None) -> str:
             # (?P<hour>\d{1,2}) - 捕获组: 小时
             # (?:...)?         - 非捕获组: 分钟部分 (可选)
             pattern = re.compile(
-                r"^(?P<am_pm>早上|上午|下午|晚上)?\s*"
+                r"^(?P<am_pm>早上|上午|下午|晚上|凌晨)?\s*"
                 r"(?P<hour>\d{1,2})\s*"
                 r"(?:[:：点]\s*(?P<minute>\d{1,2}))?\s*$"
             )
-            match = pattern.match(date_time)
+            match = pattern.match(datetime_str)
 
             if not match:
-                raise ValueError(f"无法识别的时间格式: '{date_time}'")
+                raise ValueError(f"无法识别的时间格式: '{datetime_str}'")
 
             groups = match.groupdict()
             am_pm = groups.get('am_pm')
             hour = int(groups['hour'])
             minute = int(groups['minute']) if groups['minute'] else 0
 
-            # --- 3. 根据上午/下午调整小时 ---
+            # --- 4. 根据上午/下午调整小时 ---
             if am_pm in ['下午', '晚上']:
                 if 1 <= hour < 12:
                     hour += 12
-            # elif am_pm == ['早上', '上午']:
+            elif am_pm in ['凌晨']:
+                if hour == 12 or hour == 24:
+                    hour = 0
+            # elif am_pm in ['早上', '上午']:
             #     if hour == 12:
             #         hour = 0
 
-        # --- 4. 验证时间范围 ---
+        # --- 5. 验证时间范围 ---
         if not (0 <= hour <= 23 and 0 <= minute <= 59):
             raise ValueError(f"时间值超出范围: {hour}:{minute}")
 
-        # --- 5. 创建初始 datetime 对象 ---
+        # --- 6. 创建初始 datetime 对象 ---
         dt = today.replace(hour=hour, minute=minute, second=0, microsecond=0)
 
-        # --- 6. 如果指定了星期，计算目标日期 ---
+        # --- 7. 如果指定了星期，计算目标日期 ---
         if week:
             week_map = {
                 '周一': 0, 'mon': 0, 'monday': 0,
@@ -112,12 +125,12 @@ def parse_datetime(date_time: str, week: str = None) -> str:
 
             dt += datetime.timedelta(days=days_ahead)
 
-        # --- 7. 如果未指定星期且时间已过，则安排在明天 ---
+        # --- 8. 如果未指定星期且时间已过，则安排在明天 ---
         elif dt <= today:
             dt += datetime.timedelta(days=1)
             logger.info(f"设置的时间已过，自动调整为明天: {dt.strftime('%Y-%m-%d %H:%M')}")
 
-        # --- 8. 返回格式化结果 ---
+        # --- 9. 返回格式化结果 ---
         return dt.strftime("%Y-%m-%d %H:%M")
 
     except (ValueError, TypeError) as e:
@@ -178,22 +191,46 @@ def first_load_postgres_data(postgres_url):
         # 使用 DictCursor 以便通过列名访问数据
         with conn.cursor(cursor_factory=DictCursor) as cursor:
             cursor.execute("""
-            CREATE TABLE IF NOT EXISTS reminders (
-                    id SERIAL PRIMARY KEY,
-                    session_id TEXT NOT NULL,
-                    text TEXT NOT NULL,
-                    date_time TIMESTAMP NOT NULL,
-                    user_name TEXT,
-                    repeat_type TEXT,
-                    holiday_type TEXT,
-                    creator_id TEXT,
-                    creator_name TEXT,
-                    is_task BOOLEAN DEFAULT FALSE,
-                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-                );
-                CREATE INDEX IF NOT EXISTS idx_session_id ON reminders(session_id);
-                CREATE INDEX IF NOT EXISTS idx_creator_id ON reminders(creator_id);
-            """)
+                           CREATE TABLE IF NOT EXISTS reminders
+                           (
+                               id
+                               SERIAL
+                               PRIMARY
+                               KEY,
+                               session_id
+                               TEXT
+                               NOT
+                               NULL,
+                               text
+                               TEXT
+                               NOT
+                               NULL,
+                               date_time
+                               TIMESTAMP
+                               NOT
+                               NULL,
+                               user_name
+                               TEXT,
+                               repeat_type
+                               TEXT,
+                               holiday_type
+                               TEXT,
+                               creator_id
+                               TEXT,
+                               creator_name
+                               TEXT,
+                               is_task
+                               BOOLEAN
+                               DEFAULT
+                               FALSE,
+                               created_at
+                               TIMESTAMP
+                               DEFAULT
+                               CURRENT_TIMESTAMP
+                           );
+                           CREATE INDEX IF NOT EXISTS idx_session_id ON reminders(session_id);
+                           CREATE INDEX IF NOT EXISTS idx_creator_id ON reminders(creator_id);
+                           """)
             # 执行查询
             cursor.execute('SELECT * FROM reminders ORDER BY date_time')
             rows = cursor.fetchall()

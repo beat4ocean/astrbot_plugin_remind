@@ -536,7 +536,29 @@ class ReminderScheduler:
         # 新增：处理全员提醒
         if unified_msg_origin == "wecom:FriendMessage:@all":
             task_text = reminder.get("text", "")
-            message_chain = MessageChain([Plain(f"{task_text}")])
+
+            # 获取AI提供者并生成回复
+            provider = self.context.get_using_provider()
+            if provider:
+                prompt = (f"请以友好、积极的语言将以下内容发送给用户。")
+                try:
+                    response = await provider.text_chat(
+                        session_id=unified_msg_origin,
+                        contexts=task_text,
+                        prompt=prompt,
+                    )
+
+                    if response.completion_text:
+                        message_chain = MessageChain([Plain(response.completion_text)])
+                    else:
+                        logger.warning("LLM未返回文本。")
+                        message_chain = MessageChain([Plain(f"⏰ 提醒：{task_text}")])
+                except Exception as e:
+                    logger.error(f"生成消息时出错: {str(e)}")
+                    message_chain = MessageChain([Plain(f"⏰ 提醒：{task_text}")])
+
+            else:
+                message_chain = MessageChain([Plain(f"⏰ 提醒：{task_text}")])
             try:
                 send_result = await self.context.send_message(unified_msg_origin, message_chain)
                 logger.info(f"全员提醒发送成功: {send_result}")

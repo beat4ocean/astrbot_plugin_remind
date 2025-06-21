@@ -57,14 +57,14 @@ class ReminderTools:
 
         return msg_origin
 
-    async def set_reminder(self, event: Union[AstrMessageEvent, Context], text: str, datetime_str: str,
+    async def set_reminder(self, event: Union[AstrMessageEvent, Context], text: str, date_time: str,
                            user_name: str = "用户", repeat_type: str = None, holiday_type: str = None):
         '''设置一个提醒
         
         Args:
             event:
             text(string): 提醒内容
-            datetime_str(string): 提醒时间，格式为 %Y-%m-%d %H:%M
+            date_time(string): 提醒时间，格式为 %Y-%m-%d %H:%M
             user_name(string): 提醒对象名称，默认为"用户"
             repeat_type(string): 重复类型，可选值：daily(每天)，weekly(每周)，monthly(每月)，yearly(每年)，none(不重复)
             holiday_type(string): 可选，节假日类型：workday(仅工作日执行)，holiday(仅法定节假日执行)
@@ -103,7 +103,7 @@ class ReminderTools:
 
             # 解析时间
             try:
-                dt = datetime.datetime.strptime(datetime_str, "%Y-%m-%d %H:%M")
+                dt = datetime.datetime.strptime(date_time, "%Y-%m-%d %H:%M")
             except ValueError as e:
                 return event.plain_result(str(e))
 
@@ -133,7 +133,7 @@ class ReminderTools:
             # 构建提醒数据
             reminder = {
                 "text": text,
-                "datetime": datetime_str,
+                "date_time": date_time,
                 "user_name": user_name,
                 "repeat": final_repeat_type,
                 "creator_id": creator_id,
@@ -181,19 +181,19 @@ class ReminderTools:
             elif repeat_type == "yearly" and holiday_type == "holiday":
                 repeat_str = "每年的这一天重复且仅法定节假日触发"
 
-            return f"已设置提醒:\n内容: {text}\n时间: {datetime_str} {repeat_str}\n\n使用 /si 列表 查看所有提醒"
+            return f"已设置提醒:\n内容: {text}\n时间: {date_time} {repeat_str}\n\n使用 /si 列表 查看所有提醒"
 
         except Exception as e:
             logger.error(f"设置提醒时出错: {str(e)}")
             return f"设置提醒时出错：{str(e)}"
 
-    async def set_task(self, event: Union[AstrMessageEvent, Context], text: str, datetime_str: str,
+    async def set_task(self, event: Union[AstrMessageEvent, Context], text: str, date_time: str,
                        repeat_type: str = None, holiday_type: str = None):
         '''设置一个任务，到时间后会让AI执行该任务
         
         Args:
             text(string): 任务内容，AI将执行的操作
-            datetime_str(string): 任务执行时间，格式为 %Y-%m-%d %H:%M
+            date_time(string): 任务执行时间，格式为 %Y-%m-%d %H:%M
             repeat_type(string): 重复类型，可选值：daily(每天)，weekly(每周)，monthly(每月)，yearly(每年)，none(不重复)
             holiday_type(string): 可选，节假日类型：workday(仅工作日执行)，holiday(仅法定节假日执行)
         '''
@@ -231,7 +231,7 @@ class ReminderTools:
 
             # 解析时间
             try:
-                dt = datetime.datetime.strptime(datetime_str, "%Y-%m-%d %H:%M")
+                dt = datetime.datetime.strptime(date_time, "%Y-%m-%d %H:%M")
             except ValueError as e:
                 return event.plain_result(str(e))
 
@@ -261,7 +261,7 @@ class ReminderTools:
             # 构建任务数据
             task = {
                 "text": text,
-                "datetime": datetime_str,
+                "date_time": date_time,
                 "user_name": creator_id or "用户",
                 "repeat": final_repeat_type,
                 "creator_id": creator_id,
@@ -309,7 +309,7 @@ class ReminderTools:
             elif repeat_type == "yearly" and holiday_type == "holiday":
                 repeat_str = "每年的这一天重复且仅法定节假日触发"
 
-            return f"已设置任务:\n内容: {text}\n时间: {datetime_str} {repeat_str}\n\n使用 /si 列表 查看所有任务"
+            return f"已设置任务:\n内容: {text}\n时间: {date_time} {repeat_str}\n\n使用 /si 列表 查看所有任务"
 
         except Exception as e:
             logger.error(f"设置任务时出错: {str(e)}")
@@ -372,7 +372,7 @@ class ReminderTools:
                 return "重复类型错误，可选值：daily,weekly,monthly,yearly"
 
             for i, reminder in enumerate(reminders):
-                dt = datetime.datetime.strptime(reminder["datetime"], "%Y-%m-%d %H:%M")
+                dt = datetime.datetime.strptime(reminder["date_time"], "%Y-%m-%d %H:%M")
 
                 # 检查是否只删除任务或只删除提醒
                 is_task_only = task_only and task_only.lower() == "yes"
@@ -462,7 +462,7 @@ class ReminderTools:
                     if len(job.args) >= 2 and isinstance(job.args[1], dict):
                         job_reminder = job.args[1]
                         if (job_reminder.get('text') == reminder['text'] and
-                                job_reminder.get('datetime') == reminder['datetime']):
+                                job_reminder.get("date_time") == reminder["date_time"]):
                             try:
                                 logger.info(f"Removing job: {job.id}")
                                 job.remove()

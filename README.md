@@ -131,19 +131,19 @@
     "all_user_reminds": [  
       {  
         "content": "上班打卡提醒",  
-        "datetime": "08:30",  
+        "date_time": "08:30",  
         "repeat_type": "daily",  
         "holiday_type": "workday"  
       },  
       {  
         "content": "下班提醒，记得今天的事情做完了吗？",  
-        "datetime": "18:00",  
+        "date_time": "18:00",  
         "repeat_type": "daily",  
         "holiday_type": "workday"  
       },  
       {  
         "content": "记得喝水哦",  
-        "datetime": "10:00",  
+        "date_time": "10:00",  
         "repeat_type": "daily",  
         "holiday_type": "none"  
       }  

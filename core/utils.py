@@ -1,8 +1,11 @@
+import asyncio
 import os
 import json
 import re
 import datetime
 import aiohttp
+import psycopg2
+from psycopg2.extras import DictCursor
 
 from astrbot.api import logger
 
@@ -12,7 +15,7 @@ from .database import PostgresManager
 postgres_manager = None
 
 
-def parse_datetime(datetime_str: str, week: str = None) -> str:
+def parse_datetime(date_time: str, week: str = None) -> str:
     """
     解析各种格式的时间字符串，并根据需要计算未来的日期时间。
 
@@ -25,7 +28,7 @@ def parse_datetime(datetime_str: str, week: str = None) -> str:
     - 上下午指示: "上午8点20", "下午3点", "晚上8点"
 
     Args:
-        datetime_str: 时间字符串。
+        date_time: 时间字符串。
         week: 星期几，可选值，不区分大小写和前后空格。
               中文: 周一, 周二, 周三, 周四, 周五, 周六, 周日
               英文: mon, tue, wed, thu, fri, sat, sun
@@ -39,12 +42,12 @@ def parse_datetime(datetime_str: str, week: str = None) -> str:
     try:
         # --- 1. 初始化和预处理 ---
         today = datetime.datetime.now()
-        datetime_str = datetime_str.strip()
+        date_time = date_time.strip()
 
         # --- 2. 解析时间字符串 ---
         # 优先尝试匹配 "HHMM" 或 "HMM" (如 "820") 格式
-        if datetime_str.isdigit() and len(datetime_str) in [3, 4]:
-            hhmm_str = datetime_str.zfill(4)  # "820" -> "0820"
+        if date_time.isdigit() and len(date_time) in [3, 4]:
+            hhmm_str = date_time.zfill(4)  # "820" -> "0820"
             hour = int(hhmm_str[:2])
             minute = int(hhmm_str[2:])
         else:
@@ -59,10 +62,10 @@ def parse_datetime(datetime_str: str, week: str = None) -> str:
                 r"(?P<hour>\d{1,2})\s*"
                 r"(?:[:：点]\s*(?P<minute>\d{1,2}))?\s*$"
             )
-            match = pattern.match(datetime_str)
+            match = pattern.match(date_time)
 
             if not match:
-                raise ValueError(f"无法识别的时间格式: '{datetime_str}'")
+                raise ValueError(f"无法识别的时间格式: '{date_time}'")
 
             groups = match.groupdict()
             am_pm = groups.get('am_pm')
@@ -123,50 +126,34 @@ def parse_datetime(datetime_str: str, week: str = None) -> str:
 
 def is_outdated(reminder: dict) -> bool:
     '''检查提醒是否过期'''
-    if "datetime" in reminder and reminder["datetime"]:  # 确保datetime存在且不为空
+    if "date_time" in reminder and reminder["date_time"]:  # 确保datetime存在且不为空
         try:
-            reminder_time = datetime.datetime.strptime(reminder["datetime"], "%Y-%m-%d %H:%M")
+            reminder_time = datetime.datetime.strptime(reminder["date_time"], "%Y-%m-%d %H:%M")
             current_time = datetime.datetime.now()
             # 如果提醒时间已经过去，则认为过期
             is_expired = reminder_time <= current_time
             if is_expired:
-                logger.info(f"提醒已过期: {reminder.get('text', '')} 时间: {reminder['datetime']}")
+                logger.info(f"提醒已过期: {reminder.get('text', '')} 时间: {reminder["date_time"]}")
             return is_expired
         except ValueError:
             # 如果日期格式不正确，记录错误并返回False
-            logger.error(f"提醒的日期时间格式错误: {reminder.get('datetime', '')}")
+            logger.error(f"提醒的日期时间格式错误: {reminder.get("date_time", '')}")
             return False
     return False
 
 
-async def init_postgres_manager(postgres_url=None):
-    """初始化PostgreSQL管理器
-    
-    Args:
-        postgres_url: PostgreSQL连接字符串
-    """
-    global postgres_manager
-
-    if postgres_manager is None:
-        postgres_manager = PostgresManager(postgres_url)
-        await postgres_manager.init_pool()
-
-    return postgres_manager
+# async def close_postgres_manager():
+#     """关闭PostgreSQL连接池"""
+#     global postgres_manager
+#
+#     if postgres_manager:
+#         await postgres_manager.close_pool()
+#         postgres_manager = None
 
 
-async def close_postgres_manager():
-    """关闭PostgreSQL连接池"""
-    global postgres_manager
+def first_load_reminder_data(data_file: str, postgres_url: str) -> dict:
+    '''首次加载提醒数据：
 
-    if postgres_manager:
-        await postgres_manager.close_pool()
-        postgres_manager = None
-
-
-async def load_reminder_data(data_file: str, postgres_url: str) -> dict:
-    '''加载提醒数据
-    
-    兼容旧版和新版：
     - 如果设置了postgres_url，从PostgreSQL加载
     - 否则从本地JSON文件加载
     '''
@@ -174,17 +161,70 @@ async def load_reminder_data(data_file: str, postgres_url: str) -> dict:
 
     # 从 postgres 获取数据
     if postgres_url is not None and postgres_url != "":
-        logger.info("检测到PostgreSQL配置，将异步加载数据")
-        try:
-            if postgres_manager is None:
-                postgres_manager = init_postgres_manager(postgres_url)
-            return postgres_manager.load_reminder_data()
-        except Exception as e:
-            logger.error(f"加载PostgreSQL数据失败: {str(e)}")
-            return {}
+        logger.info("从PostgreSQL同步加载数据")
+        return first_load_postgres_data(postgres_url)
+    else:
+        logger.info("从本地JSON文件加载数据")
+        # 从本地JSON文件获取数据
+        return load_json_data(data_file)
 
-    # 从本地JSON文件获取数据
-    return load_json_data(data_file)
+
+def first_load_postgres_data(postgres_url):
+    result = {}
+
+    # 建立数据库连接
+    conn = psycopg2.connect(postgres_url)
+    try:
+        # 使用 DictCursor 以便通过列名访问数据
+        with conn.cursor(cursor_factory=DictCursor) as cursor:
+            cursor.execute("""
+            CREATE TABLE IF NOT EXISTS reminders (
+                    id SERIAL PRIMARY KEY,
+                    session_id TEXT NOT NULL,
+                    text TEXT NOT NULL,
+                    date_time TIMESTAMP NOT NULL,
+                    user_name TEXT,
+                    repeat_type TEXT,
+                    holiday_type TEXT,
+                    creator_id TEXT,
+                    creator_name TEXT,
+                    is_task BOOLEAN DEFAULT FALSE,
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                );
+                CREATE INDEX IF NOT EXISTS idx_session_id ON reminders(session_id);
+                CREATE INDEX IF NOT EXISTS idx_creator_id ON reminders(creator_id);
+            """)
+            # 执行查询
+            cursor.execute('SELECT * FROM reminders ORDER BY date_time')
+            rows = cursor.fetchall()
+
+            for row in rows:
+                session_id = row['session_id']
+
+                if session_id not in result:
+                    result[session_id] = []
+
+                # 将数据库记录转换为字典格式
+                reminder = {
+                    'id': row['id'],
+                    'text': row['text'],
+                    "date_time": row["date_time"].strftime("%Y-%m-%d %H:%M"),
+                    'user_name': row['user_name'],
+                    'repeat_type': row['repeat_type'],
+                    'holiday_type': row['holiday_type'],
+                    'creator_id': row['creator_id'],
+                    'creator_name': row['creator_name'],
+                    'is_task': row['is_task']
+                }
+
+                result[session_id].append(reminder)
+
+    finally:
+        # 关闭连接
+        conn.close()
+
+    return result
+
 
 def load_json_data(data_file):
     try:
@@ -231,16 +271,54 @@ def load_json_data(data_file):
         logger.error(f"加载提醒数据失败: {str(e)}")
         return {}
 
+
+async def init_postgres_manager(postgres_url=None):
+    """异步初始化PostgreSQL管理器
+
+    Args:
+        postgres_url: PostgreSQL连接字符串
+    """
+    global postgres_manager
+
+    if postgres_manager is None:
+        postgres_manager = PostgresManager(postgres_url)
+        await postgres_manager.init_pool()
+
+    return postgres_manager
+
+
+async def load_reminder_data(data_file: str, postgres_url: str) -> dict:
+    '''异步加载提醒数据
+
+    - 如果设置了postgres_url，从PostgreSQL加载
+    - 否则从本地JSON文件加载
+    '''
+    global postgres_manager
+
+    # 从 postgres 获取数据
+    if postgres_url is not None and postgres_url != "":
+        logger.info("检测到PostgreSQL配置，将异步加载数据")
+        try:
+            if postgres_manager is None:
+                postgres_manager = init_postgres_manager(postgres_url)
+            return await postgres_manager.load_reminder_data()
+        except Exception as e:
+            logger.error(f"加载PostgreSQL数据失败: {str(e)}")
+            return {}
+
+    # 从本地JSON文件获取数据
+    return load_json_data(data_file)
+
+
 async def save_reminder_data(data_file: str, postgres_url: str, reminder_data: dict) -> bool:
     '''保存提醒数据
     
-    兼容旧版和新版：
     - 如果设置了postgres_url，保存到PostgreSQL
     - 否则保存到本地JSON文件
     '''
     global postgres_manager
 
-    if postgres_url is not None or postgres_url != "":
+    if postgres_url is not None and postgres_url != "":
         try:
             # 如果postgres_manager未初始化，执行初始化
             if postgres_manager is None:
@@ -275,7 +353,7 @@ async def save_reminder_data(data_file: str, postgres_url: str, reminder_data: d
 
             reminder_data[group] = [
                 r for r in reminder_data[group]
-                if "datetime" in r and r["datetime"] and not (is_one_time(r) and is_outdated(r))
+                if "date_time" in r and r["date_time"] and not (is_one_time(r) and is_outdated(r))
             ]
             # 如果群组没有任何提醒了，删除这个群组的条目
             if not reminder_data[group]:

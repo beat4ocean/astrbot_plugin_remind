@@ -66,9 +66,9 @@ class ReminderSystem:
 
                     for r in reminders:
                         if r.get("is_task", False):
-                            task_items.append(f"- {r['text']} (时间: {r['datetime']})")
+                            task_items.append(f"- {r['text']} (时间: {r["date_time"]})")
                         else:
-                            reminder_items.append(f"- {r['text']} (时间: {r['datetime']})")
+                            reminder_items.append(f"- {r['text']} (时间: {r["date_time"]})")
                     prompt = "请帮我整理并展示以下提醒和任务列表，用自然的语言表达：\n"
                     if reminder_items:
                         prompt += f"\n提醒列表：\n" + "\n".join(reminder_items)
@@ -143,13 +143,13 @@ class ReminderSystem:
             reminder_str += "\n提醒：\n"
             for i, reminder in enumerate(reminders_list, 1):
                 repeat_str = get_repeat_str(reminder)
-                reminder_str += f"{i}. {reminder['text']} - {reminder['datetime']}，{repeat_str}\n"
+                reminder_str += f"{i}. {reminder['text']} - {reminder["date_time"]}，{repeat_str}\n"
 
         if tasks_list:
             reminder_str += "\n任务：\n"
             for i, task in enumerate(tasks_list, 1):
                 repeat_str = get_repeat_str(task)
-                reminder_str += f"{len(reminders_list) + i}. {task['text']} - {task['datetime']}，{repeat_str}\n"
+                reminder_str += f"{len(reminders_list) + i}. {task['text']} - {task["date_time"]}，{repeat_str}\n"
 
         reminder_str += "\n使用 /si 删除 <序号> 删除提醒或任务"
         return reminder_str
@@ -196,7 +196,7 @@ class ReminderSystem:
                 if key.endswith(f"_{creator_id}") or key == msg_origin:
                     for i, reminder in enumerate(self.reminder_data[key]):
                         if (reminder['text'] == removed['text'] and
-                                reminder['datetime'] == removed['datetime']):
+                                reminder["date_time"] == removed["date_time"]):
                             self.reminder_data[key].pop(i)
                             break
 
@@ -230,7 +230,7 @@ class ReminderSystem:
             logger.error(f"删除提醒时出错: {str(e)}")
             return f"删除提醒时出错：{str(e)}"
 
-    async def add_reminder(self, event: AstrMessageEvent, text: str, time_str: str, week: str = None,
+    async def add_reminder(self, event: AstrMessageEvent, text: str, date_time: str, week: str = None,
                            repeat_type: str = None, holiday_type: str = None, is_task: bool = False):
         '''手动添加提醒或任务'''
         try:
@@ -267,8 +267,8 @@ class ReminderSystem:
 
             # 解析时间
             try:
-                datetime_str = parse_datetime(time_str, week)
-                dt = datetime.datetime.strptime(datetime_str, "%Y-%m-%d %H:%M")
+                date_time = parse_datetime(date_time, week)
+                dt = datetime.datetime.strptime(date_time, "%Y-%m-%d %H:%M")
             except ValueError as e:
                 return event.plain_result(str(e))
 
@@ -315,7 +315,7 @@ class ReminderSystem:
             # 构建提醒数据
             reminder = {
                 "text": text,
-                "datetime": dt.strftime("%Y-%m-%d %H:%M"),
+                "date_time": dt.strftime("%Y-%m-%d %H:%M"),
                 "user_name": creator_id,
                 "repeat_type": repeat_type,
                 "holiday_type": holiday_type,
@@ -372,7 +372,7 @@ class ReminderSystem:
             # provider = self.context.get_using_provider()
             # if provider:
             #    try:
-            #        prompt = f'用户设置了一个{"任务" if is_task else "提醒"}，内容为"{text}"时间为{datetime_str}，{repeat_str}。请用自然的语言回复用户，确认设置成功。'
+            #        prompt = f'用户设置了一个{"任务" if is_task else "提醒"}，内容为"{text}"时间为{date_time}，{repeat_str}。请用自然的语言回复用户，确认设置成功。'
             #        response = await provider.text_chat(
             #            prompt=prompt,
             #            session_id=event.session_id,
@@ -381,16 +381,16 @@ class ReminderSystem:
             #        return response.completion_text
             #    except Exception as e:
             #        logger.error(f"在add_reminder中调用LLM时出错: {str(e)}")
-            #        return f'好的，您的"{text}"已设置成功，时间为{datetime_str}，{repeat_str}。'
+            #        return f'好的，您的"{text}"已设置成功，时间为{date_time}，{repeat_str}。'
             # else:
-            #    return f'好的，您的"{text}"已设置成功，时间为{datetime_str}，{repeat_str}。'
+            #    return f'好的，您的"{text}"已设置成功，时间为{date_time}，{repeat_str}。'
 
             if is_task:
                 return event.plain_result(
-                    f"已设置任务:\n内容: {text}\n时间: {datetime_str}\n{start_str} {repeat_str}\n\n使用 /si 列表 查看所有提醒和任务")
+                    f"已设置任务:\n内容: {text}\n时间: {date_time}\n{start_str} {repeat_str}\n\n使用 /si 列表 查看所有提醒和任务")
             else:
                 return event.plain_result(
-                    f"已设置提醒:\n内容: {text}\n时间: {datetime_str}\n{start_str} {repeat_str}\n\n使用 /si 列表 查看所有提醒和任务")
+                    f"已设置提醒:\n内容: {text}\n时间: {date_time}\n{start_str} {repeat_str}\n\n使用 /si 列表 查看所有提醒和任务")
         except Exception as e:
             if is_task:
                 return event.plain_result(f"设置任务时出错：{str(e)}")

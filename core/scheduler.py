@@ -103,23 +103,23 @@ class ReminderScheduler:
                         continue
 
                 content = reminder_config.get("content")
-                datetime_str = reminder_config.get("datetime")
+                date_time = reminder_config.get("date_time")
                 repeat_type = reminder_config.get("repeat_type", "none")
                 holiday_type = reminder_config.get("holiday_type", "none")
                 # platform_name:message_type:session_id
                 group = "wecom:FriendMessage:@all"
 
-                if not content or not datetime_str:
+                if not content or not date_time:
                     logger.error(f"全员提醒配置不完整，跳过: {reminder_config}")
                     continue
 
-                datetime_str = parse_datetime(datetime_str, None)
-                dt = datetime.datetime.strptime(datetime_str, "%Y-%m-%d %H:%M")
+                date_time = parse_datetime(date_time, None)
+                dt = datetime.datetime.strptime(date_time, "%Y-%m-%d %H:%M")
 
                 # 创建一个 reminder 对象用于回调
                 reminder = {
                     "text": content,
-                    "datetime": dt.strftime("%Y-%m-%d %H:%M"),
+                    "date_time": dt.strftime("%Y-%m-%d %H:%M"),
                     "repeat_type": repeat_type,
                     "holiday_type": holiday_type,
                     "is_task": False
@@ -315,12 +315,12 @@ class ReminderScheduler:
         # 重新添加所有个人/群组任务
         for group in self.reminder_data:
             for i, reminder in enumerate(self.reminder_data[group]):
-                if "datetime" not in reminder:
+                if "date_time" not in reminder:
                     continue
 
-                datetime_str = reminder["datetime"]
-                datetime_str = parse_datetime(datetime_str, None)
-                dt = datetime.datetime.strptime(datetime_str, "%Y-%m-%d %H:%M")
+                date_time = reminder["date_time"]
+                date_time = parse_datetime(date_time, None)
+                dt = datetime.datetime.strptime(date_time, "%Y-%m-%d %H:%M")
 
                 repeat_type = reminder.get("repeat_type")
                 holiday_type = reminder.get("holiday_type")
@@ -678,7 +678,7 @@ class ReminderScheduler:
                                 r for r in reminders
                                 if not (
                                         r.get("text", "").strip() == reminder.get("text", "").strip() and
-                                        r.get("datetime", "").strip() == reminder.get("datetime", "").strip() and
+                                        r.get("date_time", "").strip() == reminder.get("date_time", "").strip() and
                                         r.get("creator_id", "") == reminder.get("creator_id", "") and
                                         r.get("repeat", "") in ["不重复", "none"]
                                 )

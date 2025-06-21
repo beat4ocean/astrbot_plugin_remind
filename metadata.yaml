@@ -1,5 +1,5 @@
 name: plugin_remind
-desc: 智能提醒、任务插件 (支持PostgreSQL)
+desc: 智能提醒、任务插件
 version: v0.0.2
 author: beat4ocean
 

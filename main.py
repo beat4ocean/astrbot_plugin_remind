@@ -18,7 +18,7 @@ from astrbot.core.star.star_handler import star_handlers_registry, EventType
 from .core.reminder import ReminderSystem
 from .core.scheduler import ReminderScheduler
 from .core.tools import ReminderTools
-from .core.utils import load_reminder_data
+from .core.utils import first_load_reminder_data
 
 
 @register("astrbot_plugin_remind", "beat4ocean", "智能提醒、任务插件", "0.0.2")
@@ -54,8 +54,8 @@ class Main(Star):
         os.makedirs(os.path.join(data_dir, "remind_data"), exist_ok=True)
         self.data_file = os.path.join(data_dir, "remind_data", "remind_data.json")
 
-        # 此处数据加载不支持异步
-        self.reminder_data = load_reminder_data(self.data_file, self.postgres_url)
+        # 使用同步方法加载数据
+        self.reminder_data = first_load_reminder_data(self.data_file, self.postgres_url)
 
         # 初始化调度器
         self.scheduler_manager = ReminderScheduler(
@@ -113,17 +113,17 @@ class Main(Star):
         yield event.plain_result(result)
 
     @si.command("添加提醒")
-    async def add_reminder(self, event: AstrMessageEvent, text: str, time_str: str, week: str = None,
+    async def add_reminder(self, event: AstrMessageEvent, text: str, date_time: str, week: str = None,
                            repeat_type: str = None, holiday_type: str = None):
         '''手动添加提醒'''
-        result = await self.reminder_system.add_reminder(event, text, time_str, week, repeat_type, holiday_type, False)
+        result = await self.reminder_system.add_reminder(event, text, date_time, week, repeat_type, holiday_type, False)
         return result
 
     @si.command("添加任务")
-    async def add_task(self, event: AstrMessageEvent, text: str, time_str: str, week: str = None,
+    async def add_task(self, event: AstrMessageEvent, text: str, date_time: str, week: str = None,
                        repeat_type: str = None, holiday_type: str = None):
         '''手动添加任务'''
-        result = await self.reminder_system.add_reminder(event, text, time_str, week, repeat_type, holiday_type, True)
+        result = await self.reminder_system.add_reminder(event, text, date_time, week, repeat_type, holiday_type, True)
         return result
 
     @si.command("帮助")
@@ -149,20 +149,20 @@ class Main(Star):
             return f"查询任务和提醒失败：{str(e)}"
 
     @filter.llm_tool(name="set_reminder")
-    async def set_reminder(self, event: AstrMessageEvent, text: str, datetime_str: str, user_name: str = "用户",
+    async def set_reminder(self, event: AstrMessageEvent, text: str, date_time: str, user_name: str = "用户",
                            repeat_type: str = None, holiday_type: str = None):
         '''设置一个提醒，到时间时会提醒用户
 
         Args:
             text(string): 提醒内容
-            datetime_str(string): 提醒时间，格式为 %Y-%m-%d %H:%M
+            date_time(string): 提醒时间，格式为 %Y-%m-%d %H:%M
             user_name(string): 提醒对象名称，默认为"用户"
             repeat_type(string): 重复类型，可选值：daily(每天)，weekly(每周)，monthly(每月)，yearly(每年)，none(不重复)
             holiday_type(string): 可选，节假日类型：workday(仅工作日执行)，holiday(仅法定节假日执行)
         '''
         try:
             # 调用工具类设置提醒
-            result = await self.tools.set_reminder(event, text, datetime_str, user_name, repeat_type, holiday_type)
+            result = await self.tools.set_reminder(event, text, date_time, user_name, repeat_type, holiday_type)
             logger.info(f"设置提醒结果:\n{result}")
             return result
 
@@ -171,13 +171,13 @@ class Main(Star):
             return f"设置提醒失败：{str(e)}"
 
     @filter.llm_tool(name="set_task")
-    async def set_task(self, event: AstrMessageEvent, text: str, datetime_str: str, repeat_type: str = None,
+    async def set_task(self, event: AstrMessageEvent, text: str, date_time: str, repeat_type: str = None,
                        holiday_type: str = None):
         '''设置一个任务，到时间后会让AI执行该任务
         
         Args:
             text(string): 任务内容，AI将执行的操作，如果是调用其他llm函数，请告诉ai（比如，请调用llm函数，内容是...）
-            datetime_str(string): 任务执行时间，格式为 %Y-%m-%d %H:%M
+            date_time(string): 任务执行时间，格式为 %Y-%m-%d %H:%M
             repeat_type(string): 重复类型，可选值：daily(每天)，weekly(每周)，monthly(每月)，yearly(每年)，none(不重复)
             holiday_type(string): 可选，节假日类型：workday(仅工作日执行)，holiday(仅法定节假日执行)
         '''
@@ -187,7 +187,7 @@ class Main(Star):
                 text = f"请调用llm函数，{text}"
 
             # 调用工具类设置任务
-            result = await self.tools.set_task(event, text, datetime_str, repeat_type, holiday_type)
+            result = await self.tools.set_task(event, text, date_time, repeat_type, holiday_type)
             logger.info(f"设置任务结果:\n{result}")
             return result
 

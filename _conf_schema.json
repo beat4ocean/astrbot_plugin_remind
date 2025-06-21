@@ -23,7 +23,7 @@
         "description": "提醒的具体内容",
         "default": "这是一个提醒示例"
       },
-      "datetime": {
+      "date_time": {
         "type": "string",
         "description": "提醒时间，格式为 'HH:MM'",
         "default": "09:00"
@@ -50,7 +50,7 @@
         "default": "workday"
       }
     },
-    "hint": "设置多个全员定时提醒。repeat_type可选：daily(每天), weekly(每周), monthly(每月), yearly(每年)。holiday_type可选：none(不关心节假日), workday(仅工作日), holiday(仅节假日)。示例：\n{\"content\":\"上班打卡提醒\",\"datetime\":\"08:30\",\"repeat_type\":\"daily\",\"holiday_type\":\"workday\"}",
+    "hint": "设置多个全员定时提醒。repeat_type可选：daily(每天), weekly(每周), monthly(每月), yearly(每年)。holiday_type可选：none(不关心节假日), workday(仅工作日), holiday(仅节假日)。示例：\n{\"content\":\"上班打卡提醒\",\"date_time\":\"08:30\",\"repeat_type\":\"daily\",\"holiday_type\":\"workday\"}",
     "default": []
   }
 }

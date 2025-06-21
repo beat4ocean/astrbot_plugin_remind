@@ -27,7 +27,7 @@ async def main():
             "test_session": [
                 {
                     "text": "Test reminder",
-                    "datetime": datetime.datetime.now().strftime("%Y-%m-%d %H:%M"),
+                    "date_time": datetime.datetime.now().strftime("%Y-%m-%d %H:%M"),
                     "user_name": "Test User",
                     "repeat_type": "none",
                     "creator_id": "test_user",

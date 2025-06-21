@@ -47,7 +47,7 @@ class PostgresManager:
                     id SERIAL PRIMARY KEY,
                     session_id TEXT NOT NULL,
                     text TEXT NOT NULL,
-                    reminder_datetime TIMESTAMP NOT NULL,
+                    date_time TIMESTAMP NOT NULL,
                     user_name TEXT,
                     repeat_type TEXT,
                     holiday_type TEXT,
@@ -73,7 +73,7 @@ class PostgresManager:
 
             result = {}
             async with self.pool.acquire() as conn:
-                rows = await conn.fetch('SELECT * FROM reminders ORDER BY reminder_datetime')
+                rows = await conn.fetch('SELECT * FROM reminders ORDER BY date_time')
 
                 for row in rows:
                     session_id = row['session_id']
@@ -85,7 +85,7 @@ class PostgresManager:
                     reminder = {
                         'id': row['id'],
                         'text': row['text'],
-                        'datetime': row['reminder_datetime'].strftime("%Y-%m-%d %H:%M"),
+                        "date_time": row["date_time"].strftime("%Y-%m-%d %H:%M"),
                         'user_name': row['user_name'],
                         'repeat_type': row['repeat_type'],
                         'holiday_type': row['holiday_type'],
@@ -125,20 +125,20 @@ class PostgresManager:
                     for session_id, reminders in reminder_data.items():
                         for reminder in reminders:
                             # 跳过无效的提醒
-                            if 'datetime' not in reminder or not reminder['datetime']:
+                            if "date_time" not in reminder or not reminder["date_time"]:
                                 continue
 
                             # 解析日期时间字符串
                             try:
-                                dt = datetime.datetime.strptime(reminder['datetime'], "%Y-%m-%d %H:%M")
+                                dt = datetime.datetime.strptime(reminder["date_time"], "%Y-%m-%d %H:%M")
                             except ValueError:
-                                logger.error(f"无效的日期时间格式: {reminder.get('datetime', '')}")
+                                logger.error(f"无效的日期时间格式: {reminder.get("date_time", '')}")
                                 continue
 
                             # 插入数据
                             await conn.execute('''
                                                INSERT INTO reminders
-                                               (session_id, text, reminder_datetime, user_name, repeat_type,
+                                               (session_id, text, date_time, user_name, repeat_type,
                                                 holiday_type, creator_id, creator_name, is_task)
                                                VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
                                                ''', session_id, reminder['text'], dt,
@@ -167,21 +167,21 @@ class PostgresManager:
                 await self.init_pool()
 
             # 跳过无效的提醒
-            if 'datetime' not in reminder or not reminder['datetime']:
+            if "date_time" not in reminder or not reminder["date_time"]:
                 return False
 
             # 解析日期时间字符串
             try:
-                dt = datetime.datetime.strptime(reminder['datetime'], "%Y-%m-%d %H:%M")
+                dt = datetime.datetime.strptime(reminder["date_time"], "%Y-%m-%d %H:%M")
             except ValueError:
-                logger.error(f"无效的日期时间格式: {reminder.get('datetime', '')}")
+                logger.error(f"无效的日期时间格式: {reminder.get("date_time", '')}")
                 return False
 
             async with self.pool.acquire() as conn:
                 # 插入数据
                 await conn.execute('''
                                    INSERT INTO reminders
-                                   (session_id, text, reminder_datetime, user_name, repeat_type,
+                                   (session_id, text, date_time, user_name, repeat_type,
                                     holiday_type, creator_id, creator_name, is_task)
                                    VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
                                    ''', session_id, reminder['text'], dt,
@@ -195,13 +195,13 @@ class PostgresManager:
             logger.error(f"添加提醒到PostgreSQL失败: {str(e)}")
             return False
 
-    async def remove_reminder(self, session_id: str, reminder_text: str, reminder_datetime: str) -> bool:
+    async def remove_reminder(self, session_id: str, reminder_text: str, date_time: str) -> bool:
         """从数据库中删除指定的提醒
         
         Args:
             session_id: 会话ID
             reminder_text: 提醒内容
-            reminder_datetime: 提醒时间字符串
+            date_time: 提醒时间字符串
             
         Returns:
             bool: 删除成功返回True，否则False
@@ -212,9 +212,9 @@ class PostgresManager:
 
             # 解析日期时间字符串
             try:
-                dt = datetime.datetime.strptime(reminder_datetime, "%Y-%m-%d %H:%M")
+                dt = datetime.datetime.strptime(date_time, "%Y-%m-%d %H:%M")
             except ValueError:
-                logger.error(f"无效的日期时间格式: {reminder_datetime}")
+                logger.error(f"无效的日期时间格式: {date_time}")
                 return False
 
             async with self.pool.acquire() as conn:
@@ -224,7 +224,7 @@ class PostgresManager:
                                             FROM reminders
                                             WHERE session_id = $1
                                               AND text = $2
-                                              AND reminder_datetime = $3
+                                              AND date_time = $3
                                             ''', session_id, reminder_text, dt)
 
             logger.info(f"从PostgreSQL删除提醒: {result}")
@@ -252,7 +252,7 @@ class PostgresManager:
                                             DELETE
                                             FROM reminders
                                             WHERE (repeat_type IS NULL OR repeat_type = 'none' OR repeat_type = '不重复')
-                                              AND reminder_datetime < $1
+                                              AND date_time < $1
                                             ''', now)
 
                 # 解析删除的行数

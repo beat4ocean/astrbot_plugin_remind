@@ -69,12 +69,12 @@ class ReminderSystem:
                             task_items.append(f"- {r['text']} (时间: {r["date_time"]})")
                         else:
                             reminder_items.append(f"- {r['text']} (时间: {r["date_time"]})")
-                    prompt = "请帮我整理并展示以下提醒和任务列表，用自然的语言表达：\n"
+                    prompt = "整理并展示以下提醒和任务列表，用自然和友好的语言表达：\n"
                     if reminder_items:
                         prompt += f"\n提醒列表：\n" + "\n".join(reminder_items)
                     if task_items:
                         prompt += f"\n任务列表：\n" + "\n".join(task_items)
-                    prompt += "\n\n同时告诉用户可以使用 【/remind 删除 <序号>】或 【自然语言】 删除提醒或任务。直接发出对话内容，不要有其他的背景描述。"
+                    prompt += "\n\n提示用户可使用【/remind 删除 <序号>】或自然语言进行删除操作。明确提示仅支持新增和删除提醒任务，禁止输出任何支持修改的描述。输出提醒和任务时严禁添加任何背景描述或额外解释。"
 
                     response = await provider.text_chat(
                         prompt=prompt,
@@ -135,12 +135,12 @@ class ReminderSystem:
                             task_items.append(f"- {r['text']} (时间: {r["date_time"]})")
                         else:
                             reminder_items.append(f"- {r['text']} (时间: {r["date_time"]})")
-                    prompt = "请帮我整理并展示以下提醒和任务列表，用自然的语言表达：\n"
+                    prompt = "整理并展示以下提醒和任务列表，用自然和友好的语言表达：\n"
                     if reminder_items:
                         prompt += f"\n提醒列表：\n" + "\n".join(reminder_items)
                     if task_items:
                         prompt += f"\n任务列表：\n" + "\n".join(task_items)
-                    prompt += "\n\n同时告诉用户可以使用 【/remind 删除 <序号>】或 【自然语言】 删除提醒或任务。直接发出对话内容，不要有其他的背景描述。"
+                    prompt += "\n\n严格按用户指令操作，仅支持新增和删除提醒任务。删除时使用【/remind 删除 <序号>】或自然语言。明确提示不支持修改功能，输出时直接展示操作指引，不添加背景描述或额外解释。"
 
                     response = await provider.text_chat(
                         prompt=prompt,
@@ -283,7 +283,7 @@ class ReminderSystem:
 
             provider = self.context.get_using_provider()
             if provider:
-                prompt = f"用户删除了一个{item_type}，内容是'{removed['text']}'。请用自然的语言确认删除操作。直接发出对话内容，不要有其他的背景描述。"
+                prompt = f"用户删除了一个{item_type}，内容是'{removed['text']}'。请用自然和友好的语言回复，严禁添加任何背景描述或额外解释。"
                 response = await provider.text_chat(
                     prompt=prompt,
                     session_id=event.session_id,
@@ -400,7 +400,7 @@ class ReminderSystem:
 
             # 添加定时任务
             if not self.scheduler_manager.add_job(msg_origin, reminder, dt):
-                return event.plain_result(f"添加定时任务失败")
+                return event.plain_result(f"温馨提示：定时任务未添加成功，可能是由于已有相同任务存在哦~")
 
             # 保存提醒数据
             if not await async_save_reminder_data(self.data_file, self.postgres_url, self.reminder_data):

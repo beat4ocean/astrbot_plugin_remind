@@ -149,7 +149,7 @@ class ReminderTools:
 
             # 添加定时任务
             if not self.scheduler_manager.add_job(msg_origin, reminder, dt):
-                return event.plain_result(f"添加定时任务失败")
+                return event.plain_result(f"温馨提示：定时任务未添加成功，可能是由于已有相同任务存在哦~")
 
             # 保存提醒数据
             if not await async_save_reminder_data(self.data_file, self.postgres_url, self.reminder_data):
@@ -182,7 +182,7 @@ class ReminderTools:
             elif repeat_type == "yearly" and holiday_type == "holiday":
                 repeat_str = "每年的这一天重复且仅法定节假日触发"
 
-            return f"已设置提醒:\n内容: {text}\n时间: {date_time} {repeat_str}\n\n使用 【/remind 列表】 或 【自然语言】 查看所有提醒"
+            return f"已设置提醒:\n内容: {text}\n时间: {date_time} {repeat_str}\n\n提示用户可使用【/remind 删除 <序号>】或自然语言进行删除操作。明确提示仅支持新增和删除提醒，禁止输出任何支持修改的描述。输出提醒时严禁添加任何背景描述或额外解释。"
 
         except Exception as e:
             logger.error(f"设置提醒时出错: {str(e)}")
@@ -278,7 +278,7 @@ class ReminderTools:
 
             # 添加定时任务
             if not self.scheduler_manager.add_job(msg_origin, task, dt):
-                return event.plain_result(f"添加定时任务失败")
+                return event.plain_result(f"温馨提示：定时任务未添加成功，可能是由于已有相同任务存在哦~")
 
             # 保存提醒数据
             if not await async_save_reminder_data(self.data_file, self.postgres_url, self.reminder_data):
@@ -311,14 +311,14 @@ class ReminderTools:
             elif repeat_type == "yearly" and holiday_type == "holiday":
                 repeat_str = "每年的这一天重复且仅法定节假日触发"
 
-            return f"已设置任务:\n内容: {text}\n时间: {date_time} {repeat_str}\n\n使用 【/remind 列表】 或 【自然语言】 查看所有任务"
+            return f"已设置任务:\n内容: {text}\n时间: {date_time} {repeat_str}\n\n提示用户可使用【/remind 删除 <序号>】或自然语言进行删除操作。明确提示仅支持新增和删除任务，禁止输出任何支持修改的描述。输出任务内容时严禁添加任何背景描述或额外解释。"
 
         except Exception as e:
             logger.error(f"设置任务时出错: {str(e)}")
             return f"设置任务时出错：{str(e)}"
 
     async def delete_remind(self, event: AstrMessageEvent, index: str):
-        '''删除符合条件的提醒或任务
+        '''删除符合条件的提醒或任务，不支持修改提醒或任务内容
         
         Args:
             index(string): 需要删除的提醒或任务的数字序号,例如：1
@@ -385,7 +385,7 @@ class ReminderTools:
 
             provider = self.context.get_using_provider()
             if provider:
-                prompt = f"用户删除了一个{item_type}，内容是'{to_delete_remind['text']}'。请用自然的语言回复删除操作。直接发出对话内容，不要有其他的背景描述。"
+                prompt = f"用户删除了一个{item_type}，内容是'{to_delete_remind['text']}'。请用自然和友好的语言回复，严禁添加任何背景描述或额外解释。"
                 response = await provider.text_chat(
                     prompt=prompt,
                     session_id=event.session_id,

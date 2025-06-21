@@ -196,7 +196,7 @@ class Main(Star):
 
     @filter.llm_tool(name="delete_remind")
     async def delete_remind(self, event: AstrMessageEvent, index: str):
-        '''删除符合条件的提醒或任务
+        '''删除符合条件的提醒或任务，不支持修改提醒或任务内容
         
         Args:
             index(string): 需要删除的提醒或任务的数字序号,例如：1

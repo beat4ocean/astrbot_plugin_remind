@@ -696,10 +696,10 @@ class ReminderScheduler:
                     try:
                         # 从提醒数据中删除
                         if unified_msg_origin in self.reminder_data:
-                            reminders = self.reminder_data[unified_msg_origin]
+                            reminds = self.reminder_data[unified_msg_origin]
                             # 使用更严格的匹配条件
                             self.reminder_data[unified_msg_origin] = [
-                                r for r in reminders
+                                r for r in reminds
                                 if not (
                                         r.get("text", "").strip() == reminder.get("text", "").strip() and
                                         r.get("date_time", "").strip() == reminder.get("date_time", "").strip() and

@@ -91,78 +91,90 @@ class Main(Star):
 
     # ========== 命令行开始 ==========
     # 命令组必须定义在主类中
-    @command_group("si")
-    def si(self):
+    @command_group("remind")
+    def remind(self):
         '''提醒和任务相关命令'''
         pass
 
-    @si.command("列表")
-    async def list_reminders(self, event: AstrMessageEvent):
+    @remind.command("列表")
+    async def list_reminds_and_tasks(self, event: AstrMessageEvent):
         '''列出所有提醒和任务'''
         try:
-            result = await self.reminder_system.list_reminders(event)
+            result = await self.reminder_system.list_reminds_and_tasks(event)
             yield event.plain_result(result)
         except Exception as e:
             logger.error(f"列出提醒时出错: {str(e)}")
             yield event.plain_result(f"列出提醒时出错：{str(e)}")
 
-    @si.command("删除")
-    async def remove_reminder(self, event: AstrMessageEvent, index: int):
-        '''删除提醒或任务'''
-        result = await self.reminder_system.remove_reminder(event, index)
-        yield event.plain_result(result)
-
-    @si.command("添加提醒")
-    async def add_reminder(self, event: AstrMessageEvent, text: str, date_time: str, week: str = None,
-                           repeat_type: str = None, holiday_type: str = None):
+    @remind.command("添加提醒")
+    async def add_remind(self, event: AstrMessageEvent, text: str, date_time: str, week: str = None,
+                         repeat_type: str = None, holiday_type: str = None):
         '''手动添加提醒'''
-        result = await self.reminder_system.add_reminder(event, text, date_time, week, repeat_type, holiday_type, False)
+        result = await self.reminder_system.add_remind(event, text, date_time, week, repeat_type, holiday_type, False)
         return result
 
-    @si.command("添加任务")
+    @remind.command("添加任务")
     async def add_task(self, event: AstrMessageEvent, text: str, date_time: str, week: str = None,
                        repeat_type: str = None, holiday_type: str = None):
         '''手动添加任务'''
-        result = await self.reminder_system.add_reminder(event, text, date_time, week, repeat_type, holiday_type, True)
+        result = await self.reminder_system.add_remind(event, text, date_time, week, repeat_type, holiday_type, True)
         return result
 
-    @si.command("帮助")
+    @remind.command("删除")
+    async def remove_reminds_and_tasks(self, event: AstrMessageEvent, index: int):
+        '''删除提醒或任务'''
+        result = await self.reminder_system.remove_remind_and_task(event, index)
+        yield event.plain_result(result)
+
+    @remind.command("帮助")
     async def show_help(self):
         '''显示帮助信息'''
-        help_text = self.reminder_system.get_help_text()
+        help_text = self.reminder_system.show_help()
         return help_text
 
     # ========== 命令行结束 ==========
 
     # ========== LLM 开始 ==========
-    @filter.llm_tool(name="query_reminder")
-    async def query_reminder(self, event: AstrMessageEvent):
-        '''查询所有提醒和任务'''
+    @filter.llm_tool(name="query_reminds")
+    async def query_reminds(self, event: AstrMessageEvent):
+        '''查询所有提醒'''
         try:
             # 调用工具类设置提醒
-            result = await self.reminder_system.list_reminders(event)
-            logger.info(f"查询任务和提醒结果:\n{result[:50]}...")
+            result = await self.reminder_system.query_reminds(event)
+            logger.info(f"查询提醒结果:\n{result[:50]}...")
             return result
 
         except Exception as e:
-            logger.error(f"查询任务和提醒时出错: {str(e)}")
-            return f"查询任务和提醒失败：{str(e)}"
+            logger.error(f"查询提醒时出错: {str(e)}")
+            return f"查询提醒失败：{str(e)}"
 
-    @filter.llm_tool(name="set_reminder")
-    async def set_reminder(self, event: AstrMessageEvent, text: str, date_time: str, user_name: str = "用户",
-                           repeat_type: str = None, holiday_type: str = None):
+    @filter.llm_tool(name="query_tasks")
+    async def query_tasks(self, event: AstrMessageEvent):
+        '''查询所有任务'''
+        try:
+            # 调用工具类设置提醒
+            result = await self.task_system.query_tasks(event)
+            logger.info(f"查询任务结果:\n{result[:50]}...")
+            return result
+
+        except Exception as e:
+            logger.error(f"查询任务时出错: {str(e)}")
+            return f"查询任务失败：{str(e)}"
+
+    @filter.llm_tool(name="set_remind")
+    async def set_remind(self, event: AstrMessageEvent, text: str, date_time: str, repeat_type: str = None,
+                         holiday_type: str = None):
         '''设置一个提醒，到时间时会提醒用户
 
         Args:
             text(string): 提醒内容
             date_time(string): 提醒时间，格式为 %Y-%m-%d %H:%M
-            user_name(string): 提醒对象名称，默认为"用户"
             repeat_type(string): 重复类型，可选值：daily(每天)，weekly(每周)，monthly(每月)，yearly(每年)，none(不重复)
             holiday_type(string): 可选，节假日类型：workday(仅工作日执行)，holiday(仅法定节假日执行)
         '''
         try:
             # 调用工具类设置提醒
-            result = await self.tools.set_reminder(event, text, date_time, user_name, repeat_type, holiday_type)
+            result = await self.tools.set_remind(event, text, date_time, repeat_type, holiday_type)
             logger.info(f"设置提醒结果:\n{result}")
             return result
 
@@ -195,45 +207,33 @@ class Main(Star):
             logger.error(f"设置任务时出错: {str(e)}")
             return f"设置任务失败：{str(e)}"
 
-    @filter.llm_tool(name="delete_reminder")
-    async def delete_reminder(self, event,
-                              content: str = None,  # 提醒内容关键词
-                              time: str = None,  # 具体时间点 HH:MM
-                              weekday: str = None,  # 星期 周日,周一,周二,周三,周四,周五,周六
-                              repeat_type: str = None,  # 重复类型 每天,每周,每月,每年
-                              date: str = None,  # 具体日期 YYYY-MM-DD
-                              all: str = None,  # 是否删除所有 "yes"/"no"
-                              ):
-        '''删除符合条件的提醒，可组合多个条件进行精确筛选
+    @filter.llm_tool(name="delete_remind")
+    async def delete_remind(self, event: AstrMessageEvent, index: str):
+        '''删除符合条件的提醒
         
         Args:
-            content(string): 可选，提醒内容包含的关键词
-            time(string): 可选，具体时间点，格式为 HH:MM，如 "08:00"
-            weekday(string): 可选，星期几，可选值：mon,tue,wed,thu,fri,sat,sun
-            repeat_type(string): 可选，重复类型，可选值：daily,weekly,monthly,yearly,none
-            date(string): 可选，具体日期，格式为 YYYY-MM-DD，如 "2024-02-09"
-            all(string): 可选，是否删除所有提醒，可选值：yes/no，默认no
+            index(int): 需要删除的提醒的序号
         '''
-        return await self.tools.delete_reminder(event, content, time, weekday, repeat_type, date, all, "no", "yes")
+        try:
+            result = await self.tools.delete_remind(event, int(index))
+            logger.info(f"删除提醒结果:\n{result}")
+            return result
+        except Exception as e:
+            logger.error(f"删除提醒时出错: {str(e)}")
+            return f"删除提醒失败：{str(e)}"
 
     @filter.llm_tool(name="delete_task")
-    async def delete_task(self, event,
-                          content: str = None,  # 任务内容关键词
-                          time: str = None,  # 具体时间点 HH:MM
-                          weekday: str = None,  # 星期 周日,周一,周二,周三,周四,周五,周六
-                          repeat_type: str = None,  # 重复类型 每天,每周,每月,每年
-                          date: str = None,  # 具体日期 YYYY-MM-DD
-                          all: str = None  # 是否删除所有 "yes"/"no"
-                          ):
-        '''删除符合条件的任务，可组合多个条件进行精确筛选
-        
+    async def delete_task(self, event: AstrMessageEvent, index: str):
+        '''删除符合条件的任务
+
         Args:
-            content(string): 可选，任务内容包含的关键词
-            time(string): 可选，具体时间点，格式为 HH:MM，如 "08:00"
-            weekday(string): 可选，星期几，可选值：mon,tue,wed,thu,fri,sat,sun
-            repeat_type(string): 可选，重复类型，可选值：daily,weekly,monthly,yearly,none
-            date(string): 可选，具体日期，格式为 YYYY-MM-DD，如 "2024-02-09"
-            all(string): 可选，是否删除所有任务，可选值：yes/no，默认no
+            index(int): 需要删除的任务的序号
         '''
-        return await self.tools.delete_reminder(event, content, time, weekday, repeat_type, date, all, "yes", "no")
+        try:
+            result = await self.tools.delete_task(event, int(index))
+            logger.info(f"删除任务结果:\n{result}")
+            return result
+        except Exception as e:
+            logger.error(f"删除任务时出错: {str(e)}")
+            return f"删除任务失败：{str(e)}"
     # ========== LLM 结束 ==========

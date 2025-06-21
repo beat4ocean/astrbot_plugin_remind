@@ -58,14 +58,13 @@ class ReminderTools:
         return msg_origin
 
     async def set_reminder(self, event: Union[AstrMessageEvent, Context], text: str, date_time: str,
-                           user_name: str = "用户", repeat_type: str = None, holiday_type: str = None):
+                           repeat_type: str = None, holiday_type: str = None):
         '''设置一个提醒
         
         Args:
             event:
             text(string): 提醒内容
             date_time(string): 提醒时间，格式为 %Y-%m-%d %H:%M
-            user_name(string): 提醒对象名称，默认为"用户"
             repeat_type(string): 重复类型，可选值：daily(每天)，weekly(每周)，monthly(每月)，yearly(每年)，none(不重复)
             holiday_type(string): 可选，节假日类型：workday(仅工作日执行)，holiday(仅法定节假日执行)
         '''
@@ -118,7 +117,8 @@ class ReminderTools:
             # 验证重复类型
             repeat_types = ["daily", "weekly", "monthly", "yearly", "none"]
             if repeat_type and repeat_type.lower() not in repeat_types:
-                return event.plain_result("重复类型错误，可选值：daily(日)，weekly(周)，monthly(月)，yearly(年)，none(不重复)")
+                return event.plain_result(
+                    "重复类型错误，可选值：daily(日)，weekly(周)，monthly(月)，yearly(年)，none(不重复)")
 
             # 验证节假日类型
             holiday_types = ["workday", "holiday"]
@@ -133,7 +133,7 @@ class ReminderTools:
             reminder = {
                 "text": text,
                 "date_time": date_time,
-                "user_name": user_name,
+                "user_name": creator_id,
                 "repeat_type": repeat_type,
                 "holiday_type": holiday_type,
                 "creator_id": creator_id,
@@ -246,7 +246,8 @@ class ReminderTools:
             # 验证重复类型
             repeat_types = ["daily", "weekly", "monthly", "yearly", "none"]
             if repeat_type and repeat_type.lower() not in repeat_types:
-                return event.plain_result("重复类型错误，可选值：daily(日)，weekly(周)，monthly(月)，yearly(年)，none(不重复)")
+                return event.plain_result(
+                    "重复类型错误，可选值：daily(日)，weekly(周)，monthly(月)，yearly(年)，none(不重复)")
 
             # 验证节假日类型
             holiday_types = ["workday", "holiday"]
@@ -261,7 +262,7 @@ class ReminderTools:
             task = {
                 "text": text,
                 "date_time": date_time,
-                "user_name": creator_id or "用户",
+                "user_name": creator_id,
                 "repeat_type": repeat_type,
                 "holiday_type": holiday_type,
                 "creator_id": creator_id,

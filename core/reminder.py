@@ -8,7 +8,7 @@ from astrbot.api.star import StarTools
 from astrbot.core.message.message_event_result import MessageChain
 
 from .tools import ReminderTools
-from .utils import load_reminder_data, parse_datetime, save_reminder_data
+from .utils import load_reminder_data, parse_datetime, save_reminder_data, first_load_reminder_data
 
 
 class ReminderSystem:
@@ -19,6 +19,7 @@ class ReminderSystem:
         self.tools = tools
         self.data_file = data_file
         self.postgres_url = postgres_url
+        self.reminder_data = first_load_reminder_data(self.data_file, self.postgres_url)
         self.unique_session = config.get("unique_session", False)
 
         # 确保 tools 属性被正确初始化
@@ -230,7 +231,7 @@ class ReminderSystem:
             logger.error(f"删除提醒时出错: {str(e)}")
             return f"删除提醒时出错：{str(e)}"
 
-    async def add_reminder(self, event: AstrMessageEvent, text: str, date_time: str, week: str = None,
+    async def add_reminder(self, event: AstrMessageEvent, text: str, datetime_str: str, week: str = None,
                            repeat_type: str = None, holiday_type: str = None, is_task: bool = False):
         '''手动添加提醒或任务'''
         try:
@@ -267,8 +268,8 @@ class ReminderSystem:
 
             # 解析时间
             try:
-                date_time = parse_datetime(date_time, week)
-                dt = datetime.datetime.strptime(date_time, "%Y-%m-%d %H:%M")
+                datetime_str = parse_datetime(datetime_str, week)
+                dt = datetime.datetime.strptime(datetime_str, "%Y-%m-%d %H:%M")
             except ValueError as e:
                 return event.plain_result(str(e))
 
@@ -278,7 +279,8 @@ class ReminderSystem:
             # 改进的参数处理逻辑：尝试调整星期和重复类型参数
             if week and week.lower() not in week_map:
                 # 星期格式错误，尝试将其作为repeat处理
-                if week.lower() in ["daily", "weekly", "monthly", "yearly"] or week.lower() in ["workday", "holiday"]:
+                if (week.lower() in ["daily", "weekly", "monthly", "yearly", "none"]
+                        or week.lower() in ["workday", "holiday"]):
                     # week参数实际上可能是repeat参数
                     if repeat_type:
                         # 如果repeat_type也存在，则将week和repeat_type作为组合
@@ -299,9 +301,10 @@ class ReminderSystem:
             #         holiday_type = parts[1]  # 提取节假日类型
 
             # 验证重复类型
-            repeat_types = ["daily", "weekly", "monthly", "yearly"]
+            repeat_types = ["daily", "weekly", "monthly", "yearly", "none"]
             if repeat_type and repeat_type.lower() not in repeat_types:
-                return event.plain_result("重复类型错误，可选值：daily(日)，weekly(周)，monthly(月)，yearly(年)，none(不重复)")
+                return event.plain_result(
+                    "重复类型错误，可选值：daily(日)，weekly(周)，monthly(月)，yearly(年)，none(不重复)")
 
             # 验证节假日类型
             holiday_types = ["workday", "holiday"]
@@ -387,10 +390,10 @@ class ReminderSystem:
 
             if is_task:
                 return event.plain_result(
-                    f"已设置任务:\n内容: {text}\n时间: {date_time}\n{start_str} {repeat_str}\n\n使用 /si 列表 查看所有提醒和任务")
+                    f"已设置任务:\n内容: {text}\n时间: {datetime_str}\n{start_str} {repeat_str}\n\n使用 /si 列表 查看所有提醒和任务")
             else:
                 return event.plain_result(
-                    f"已设置提醒:\n内容: {text}\n时间: {date_time}\n{start_str} {repeat_str}\n\n使用 /si 列表 查看所有提醒和任务")
+                    f"已设置提醒:\n内容: {text}\n时间: {datetime_str}\n{start_str} {repeat_str}\n\n使用 /si 列表 查看所有提醒和任务")
         except Exception as e:
             if is_task:
                 return event.plain_result(f"设置任务时出错：{str(e)}")

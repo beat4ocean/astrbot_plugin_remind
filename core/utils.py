@@ -191,45 +191,22 @@ def first_load_postgres_data(postgres_url):
         # 使用 DictCursor 以便通过列名访问数据
         with conn.cursor(cursor_factory=DictCursor) as cursor:
             cursor.execute("""
-                           CREATE TABLE IF NOT EXISTS reminders
-                           (
-                               id
-                               SERIAL
-                               PRIMARY
-                               KEY,
-                               session_id
-                               TEXT
-                               NOT
-                               NULL,
-                               text
-                               TEXT
-                               NOT
-                               NULL,
-                               date_time
-                               TIMESTAMP
-                               NOT
-                               NULL,
-                               user_name
-                               TEXT,
-                               repeat_type
-                               TEXT,
-                               holiday_type
-                               TEXT,
-                               creator_id
-                               TEXT,
-                               creator_name
-                               TEXT,
-                               is_task
-                               BOOLEAN
-                               DEFAULT
-                               FALSE,
-                               created_at
-                               TIMESTAMP
-                               DEFAULT
-                               CURRENT_TIMESTAMP
-                           );
-                           CREATE INDEX IF NOT EXISTS idx_session_id ON reminders(session_id);
-                           CREATE INDEX IF NOT EXISTS idx_creator_id ON reminders(creator_id);
+            CREATE TABLE IF NOT EXISTS reminders
+            (
+                id           SERIAL PRIMARY KEY,
+                session_id   TEXT      NOT NULL,
+                text         TEXT      NOT NULL,
+                date_time    TIMESTAMP NOT NULL,
+                user_name    TEXT,
+                repeat_type  TEXT,
+                holiday_type TEXT,
+                creator_id   TEXT,
+                creator_name TEXT,
+                is_task      BOOLEAN   DEFAULT FALSE,
+                created_at   TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            );
+            CREATE INDEX IF NOT EXISTS idx_session_id ON reminders (session_id);
+            CREATE INDEX IF NOT EXISTS idx_creator_id ON reminders (creator_id);
                            """)
             # 执行查询
             cursor.execute('SELECT * FROM reminders ORDER BY date_time')

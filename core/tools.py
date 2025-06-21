@@ -243,7 +243,7 @@ class ReminderTools:
                     holiday_type = parts[1]  # 提取节假日类型
 
             # 验证重复类型
-            repeat_types = ["daily", "weekly", "monthly", "yearly"]
+            repeat_types = ["daily", "weekly", "monthly", "yearly", "none"]
             if repeat_type and repeat_type.lower() not in repeat_types:
                 return event.plain_result("重复类型错误，可选值：daily(日)，weekly(周)，monthly(月)，yearly(年)，none(不重复)")
 
@@ -366,7 +366,7 @@ class ReminderTools:
                 return "星期格式错误，可选值：mon,tue,wed,thu,fri,sat,sun"
 
             # 验证重复类型
-            repeat_types = ["daily", "weekly", "monthly", "yearly"]
+            repeat_types = ["daily", "weekly", "monthly", "yearly", "none"]
             if repeat_type and repeat_type.lower() not in repeat_types:
                 return "重复类型错误，可选值：daily(日)，weekly(周)，monthly(月)，yearly(年)，none(不重复)"
 

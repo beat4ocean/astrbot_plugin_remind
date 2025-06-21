@@ -74,7 +74,7 @@ class ReminderSystem:
                         prompt += f"\n提醒列表：\n" + "\n".join(reminder_items)
                     if task_items:
                         prompt += f"\n任务列表：\n" + "\n".join(task_items)
-                    prompt += "\n\n同时告诉用户可以使用 【/remind 删除 <序号>】或 【自然语言】 删除提醒。直接发出对话内容，不要有其他的背景描述。"
+                    prompt += "\n\n同时告诉用户可以使用 【/remind 删除 <序号>】或 【自然语言】 删除提醒或任务。直接发出对话内容，不要有其他的背景描述。"
 
                     response = await provider.text_chat(
                         prompt=prompt,
@@ -88,8 +88,8 @@ class ReminderSystem:
             else:
                 return self._format_reminder_list(reminds)
         except Exception as e:
-            logger.error(f"列出提醒时出错: {str(e)}")
-            return f"列出提醒时出错：{str(e)}"
+            logger.error(f"列出提醒或任务时出错: {str(e)}")
+            return f"列出提醒或任务时出错：{str(e)}"
 
     async def query_reminds(self, event: AstrMessageEvent):
         '''列出所有提醒'''
@@ -119,8 +119,9 @@ class ReminderSystem:
                 # logger.info(f"检查会话ID: {key}")
                 # 检查是否是当前用户的所有提醒
                 if key.endswith(f"_{creator_id}") or key == msg_origin:
-                    if not self.reminder_data[key].get("is_task", False):
-                        reminds.extend(self.reminder_data[key])
+                    for i, reminder in enumerate(self.reminder_data[key]):
+                        if reminder["is_task"] == "false":
+                            reminds.extend(self.reminder_data[key])
 
             if not reminds:
                 return "当前没有设置任何提醒。"
@@ -131,7 +132,7 @@ class ReminderSystem:
                     reminder_items = []
 
                     for r in reminds:
-                        if not r.get("is_task", False):
+                        if not r["is_task"]:
                             reminder_items.append(f"- {r['text']} (时间: {r["date_time"]})")
                     prompt = "请帮我整理并展示以下提醒列表，用自然的语言表达：\n"
                     prompt += f"\n提醒列表：\n" + "\n".join(reminder_items)
@@ -180,8 +181,9 @@ class ReminderSystem:
                 # logger.info(f"检查会话ID: {key}")
                 # 检查是否是当前用户的所有任务
                 if key.endswith(f"_{creator_id}") or key == msg_origin:
-                    if self.reminder_data[key].get("is_task", False):
-                        tasks.extend(self.reminder_data[key])
+                    for i, reminder in enumerate(self.reminder_data[key]):
+                        if reminder["is_task"] == "true":
+                            tasks.extend(self.reminder_data[key])
 
             if not tasks:
                 return "当前没有设置任何任务。"
@@ -192,7 +194,7 @@ class ReminderSystem:
                     task_items = []
 
                     for r in tasks:
-                        if r.get("is_task", False):
+                        if r["is_task"]:
                             task_items.append(f"- {r['text']} (时间: {r["date_time"]})")
                     prompt = "请帮我整理并展示以下任务列表，用自然的语言表达：\n"
                     prompt += f"\n任务列表：\n" + "\n".join(task_items)
@@ -277,7 +279,7 @@ class ReminderSystem:
 
         return reminder_str
 
-    async def remove_remind_and_task(self, event: AstrMessageEvent, index: int):
+    async def remove_remind_and_task(self, event: AstrMessageEvent, index: str):
         '''删除提醒或任务'''
         try:
             # 获取用户ID

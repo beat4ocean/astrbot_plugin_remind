@@ -58,7 +58,7 @@ class ReminderTools:
         return msg_origin
 
     async def set_remind(self, event: Union[AstrMessageEvent, Context], text: str, date_time: str,
-                           repeat_type: str = None, holiday_type: str = None):
+                         repeat_type: str = None, holiday_type: str = None):
         '''设置一个提醒
         
         Args:
@@ -316,11 +316,11 @@ class ReminderTools:
             logger.error(f"设置任务时出错: {str(e)}")
             return f"设置任务时出错：{str(e)}"
 
-    async def delete_remind(self, event: AstrMessageEvent, index: int):
+    async def delete_remind(self, event: AstrMessageEvent, index: str):
         '''删除符合条件的提醒
         
         Args:
-            index(int): 需要删除的提醒的序号
+            index(string): 需要删除的提醒的数字序号,例如：1,2,3
         '''
         try:
             # 获取用户ID
@@ -346,18 +346,18 @@ class ReminderTools:
             reminds = []
             for key in self.reminder_data:
                 if key.endswith(f"_{creator_id}") or key == msg_origin:
-                    r = self.reminder_data[key]
-                    if not r.get("is_task", False):
-                         reminds.extend(self.reminder_data[key])
+                    for i, reminder in enumerate(self.reminder_data[key]):
+                        if reminder["is_task"] == "false":
+                            reminds.extend(self.reminder_data[key])
 
             if not reminds:
                 return "没有设置任何提醒。"
 
-            if index < 1 or index > len(reminds):
+            if int(index) < 1 or int(index) > len(reminds):
                 return "序号无效。"
 
             # 找到要删除的提醒
-            to_delete_remind = reminds[index - 1]
+            to_delete_remind = reminds[int(index) - 1]
 
             # 从原始数据中删除
             for key in self.reminder_data:
@@ -369,7 +369,7 @@ class ReminderTools:
                             break
 
             # 删除定时提醒
-            job_id = f"remind_{msg_origin}_{index - 1}"
+            job_id = f"remind_{msg_origin}_{int(index) - 1}"
             try:
                 self.scheduler_manager.remove_job(job_id)
                 logger.info(f"Successfully delete remind job: {job_id}")
@@ -395,11 +395,11 @@ class ReminderTools:
             logger.error(f"删除提醒时出错: {str(e)}")
             return f"删除提醒时出错：{str(e)}"
 
-    async def delete_task(self, event: AstrMessageEvent, index: int):
+    async def delete_task(self, event: AstrMessageEvent, index: str):
         '''删除符合条件的任务
 
         Args:
-            index(int): 需要删除的任务的序号
+            index(string): 需要删除的任务的数字序号,例如：1,2,3
         '''
         try:
             # 获取用户ID
@@ -425,18 +425,18 @@ class ReminderTools:
             tasks = []
             for key in self.reminder_data:
                 if key.endswith(f"_{creator_id}") or key == msg_origin:
-                    r = self.reminder_data[key]
-                    if r.get("is_task", False):
-                         tasks.extend(self.reminder_data[key])
+                    for i, reminder in enumerate(self.reminder_data[key]):
+                        if reminder["is_task"] == "true":
+                            tasks.extend(self.reminder_data[key])
 
             if not tasks:
                 return "没有设置任何任务。"
 
-            if index < 1 or index > len(tasks):
+            if int(index) < 1 or int(index) > len(tasks):
                 return "序号无效。"
 
             # 找到要删除的任务
-            to_delete_task = tasks[index - 1]
+            to_delete_task = tasks[int(index) - 1]
 
             # 从原始数据中删除
             for key in self.reminder_data:
@@ -448,7 +448,7 @@ class ReminderTools:
                             break
 
             # 删除定时任务
-            job_id = f"remind_{msg_origin}_{index - 1}"
+            job_id = f"remind_{msg_origin}_{int(index) - 1}"
             try:
                 self.scheduler_manager.remove_job(job_id)
                 logger.info(f"Successfully delete task job: {job_id}")

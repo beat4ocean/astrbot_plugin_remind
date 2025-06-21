@@ -5,7 +5,7 @@ from apscheduler.schedulers.base import JobLookupError
 from astrbot.api import logger
 from astrbot.api.event import MessageChain
 from astrbot.api.message_components import At, Plain
-from .utils import is_outdated, save_reminder_data, HolidayManager, load_reminder_data, parse_datetime
+from .utils import is_outdated, save_reminder_data, HolidayManager, parse_datetime
 
 # 使用全局注册表来保存调度器实例
 # 现在即使在模块重载后，调度器实例也能保持，我看你还怎么创建新实例（恼）
@@ -21,7 +21,7 @@ else:
 
 
 class ReminderScheduler:
-    def __new__(cls, context, reminder_data, data_file, unique_session=False, all_user_reminds=None):
+    def __new__(cls, context, reminder_data, data_file, postgres_url, unique_session=False, all_user_reminds=None):
         # 使用实例属性存储初始化状态
         instance = super(ReminderScheduler, cls).__new__(cls)
         instance._first_init = True  # 首次初始化
@@ -29,10 +29,11 @@ class ReminderScheduler:
         logger.info("创建 ReminderScheduler 实例")
         return instance
 
-    def __init__(self, context, reminder_data, data_file, unique_session=False, all_user_reminds=None):
+    def __init__(self, context, reminder_data, data_file, postgres_url, unique_session=False, all_user_reminds=None):
         self.context = context
         self.reminder_data = reminder_data
         self.data_file = data_file
+        self.postgres_url = postgres_url
         self.unique_session = unique_session
         # 新增：保存全员提醒配置
         self.all_user_reminds = all_user_reminds or []
@@ -387,7 +388,8 @@ class ReminderScheduler:
                         misfire_grace_time=60,
                         id=job_id
                     )
-                    logger.info(f"添加每周提醒: {reminder['text']} 时间: 每周{dt.weekday() + 1} {dt.hour}:{dt.minute} ID: {job_id}")
+                    logger.info(
+                        f"添加每周提醒: {reminder['text']} 时间: 每周{dt.weekday() + 1} {dt.hour}:{dt.minute} ID: {job_id}")
                 elif repeat_type == "weekly" and holiday_type == "workday":
                     self.scheduler.add_job(
                         self._check_and_execute_workday,
@@ -399,7 +401,8 @@ class ReminderScheduler:
                         misfire_grace_time=60,
                         id=job_id
                     )
-                    logger.info(f"添加每周工作日提醒: {reminder['text']} 时间: 每周{dt.weekday() + 1} {dt.hour}:{dt.minute} ID: {job_id}")
+                    logger.info(
+                        f"添加每周工作日提醒: {reminder['text']} 时间: 每周{dt.weekday() + 1} {dt.hour}:{dt.minute} ID: {job_id}")
                 elif repeat_type == "weekly" and holiday_type == "holiday":
                     self.scheduler.add_job(
                         self._check_and_execute_holiday,
@@ -411,7 +414,8 @@ class ReminderScheduler:
                         misfire_grace_time=60,
                         id=job_id
                     )
-                    logger.info(f"添加每周节假日提醒: {reminder['text']} 时间: 每周{dt.weekday() + 1} {dt.hour}:{dt.minute} ID: {job_id}")
+                    logger.info(
+                        f"添加每周节假日提醒: {reminder['text']} 时间: 每周{dt.weekday() + 1} {dt.hour}:{dt.minute} ID: {job_id}")
                 elif repeat_type == "monthly" and not holiday_type:
                     self.scheduler.add_job(
                         self._reminder_callback,
@@ -423,7 +427,8 @@ class ReminderScheduler:
                         misfire_grace_time=60,
                         id=job_id
                     )
-                    logger.info(f"添加每月提醒: {reminder['text']} 时间: 每月{dt.day}日 {dt.hour}:{dt.minute} ID: {job_id}")
+                    logger.info(
+                        f"添加每月提醒: {reminder['text']} 时间: 每月{dt.day}日 {dt.hour}:{dt.minute} ID: {job_id}")
                 elif repeat_type == "monthly" and holiday_type == "workday":
                     self.scheduler.add_job(
                         self._check_and_execute_workday,
@@ -435,7 +440,8 @@ class ReminderScheduler:
                         misfire_grace_time=60,
                         id=job_id
                     )
-                    logger.info(f"添加每月工作日提醒: {reminder['text']} 时间: 每月{dt.day}日 {dt.hour}:{dt.minute} ID: {job_id}")
+                    logger.info(
+                        f"添加每月工作日提醒: {reminder['text']} 时间: 每月{dt.day}日 {dt.hour}:{dt.minute} ID: {job_id}")
                 elif repeat_type == "monthly" and holiday_type == "holiday":
                     self.scheduler.add_job(
                         self._check_and_execute_holiday,
@@ -447,7 +453,8 @@ class ReminderScheduler:
                         misfire_grace_time=60,
                         id=job_id
                     )
-                    logger.info(f"添加每月节假日提醒: {reminder['text']} 时间: 每月{dt.day}日 {dt.hour}:{dt.minute} ID: {job_id}")
+                    logger.info(
+                        f"添加每月节假日提醒: {reminder['text']} 时间: 每月{dt.day}日 {dt.hour}:{dt.minute} ID: {job_id}")
                 elif repeat_type == "yearly" and not holiday_type:
                     self.scheduler.add_job(
                         self._reminder_callback,
@@ -460,7 +467,8 @@ class ReminderScheduler:
                         misfire_grace_time=60,
                         id=job_id
                     )
-                    logger.info(f"添加每年提醒: {reminder['text']} 时间: 每年{dt.month}月{dt.day}日 {dt.hour}:{dt.minute} ID: {job_id}")
+                    logger.info(
+                        f"添加每年提醒: {reminder['text']} 时间: 每年{dt.month}月{dt.day}日 {dt.hour}:{dt.minute} ID: {job_id}")
                 elif repeat_type == "yearly" and holiday_type == "workday":
                     self.scheduler.add_job(
                         self._check_and_execute_workday,
@@ -473,7 +481,8 @@ class ReminderScheduler:
                         misfire_grace_time=60,
                         id=job_id
                     )
-                    logger.info(f"添加每年工作日提醒: {reminder['text']} 时间: 每年{dt.month}月{dt.day}日 {dt.hour}:{dt.minute} ID: {job_id}")
+                    logger.info(
+                        f"添加每年工作日提醒: {reminder['text']} 时间: 每年{dt.month}月{dt.day}日 {dt.hour}:{dt.minute} ID: {job_id}")
                 elif repeat_type == "yearly" and holiday_type == "holiday":
                     self.scheduler.add_job(
                         self._check_and_execute_holiday,
@@ -486,7 +495,8 @@ class ReminderScheduler:
                         misfire_grace_time=60,
                         id=job_id
                     )
-                    logger.info(f"添加每年节假日提醒: {reminder['text']} 时间: 每年{dt.month}月{dt.day}日 {dt.hour}:{dt.minute} ID: {job_id}")
+                    logger.info(
+                        f"添加每年节假日提醒: {reminder['text']} 时间: 每年{dt.month}月{dt.day}日 {dt.hour}:{dt.minute} ID: {job_id}")
                 else:
                     self.scheduler.add_job(
                         self._reminder_callback,
@@ -496,7 +506,8 @@ class ReminderScheduler:
                         misfire_grace_time=60,
                         id=job_id
                     )
-                    logger.info(f"添加一次性提醒: {reminder['text']} 时间: {dt.strftime('%Y-%m-%d %H:%M')} ID: {job_id}")
+                    logger.info(
+                        f"添加一次性提醒: {reminder['text']} 时间: {dt.strftime('%Y-%m-%d %H:%M')} ID: {job_id}")
 
     async def _check_and_execute_workday(self, unified_msg_origin: str, reminder: dict):
         '''检查当天是否为工作日，如果是则执行提醒'''
@@ -675,7 +686,7 @@ class ReminderScheduler:
                             logger.info(f"已删除一次性{'任务' if is_task else '提醒'}: {task_text}")
 
                             # 保存更新后的提醒数据
-                            await save_reminder_data(self.data_file, self.reminder_data)
+                            await save_reminder_data(self.data_file, self.postgres_url, self.reminder_data)
                             logger.info(f"已保存更新后的提醒数据")
                     except Exception as e:
                         logger.error(f"删除一次性{'任务' if is_task else '提醒'}时出错: {str(e)}")
@@ -1031,6 +1042,7 @@ class ReminderScheduler:
     # 析构函数不执行操作
     def __del__(self):
         # 不关闭调度器，因为它是全局共享的
+        logger.info("ReminderScheduler 实例被销毁")
         pass
 
     @staticmethod

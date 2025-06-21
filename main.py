@@ -21,13 +21,13 @@ from .core.tools import ReminderTools
 from .core.utils import load_reminder_data
 
 
-@register("astrbot_plugin_remind", "beat4ocean", "智能提醒、任务插件", "0.0.1")
+@register("astrbot_plugin_remind", "beat4ocean", "智能提醒、任务插件", "0.0.2")
 class Main(Star):
     @classmethod
     def info(cls):
         return {
             "name": "astrbot_plugin_remind",
-            "version": "0.0.1",
+            "version": "0.0.2",
             "description": "智能提醒、任务插件",
             "author": "beat4ocean"
         }
@@ -41,28 +41,49 @@ class Main(Star):
         # 新增：获取全员提醒配置
         self.all_user_reminds = self.config.get("all_user_reminds", [])
 
+        # 配置PostgreSQL
+        self.postgres_url = self.config.get("postgres_url", "")
+        if self.postgres_url != "":
+            logger.info("将使用PostgreSQL保存提醒数据")
+        else:
+            logger.info("将使用本地JSON文件保存提醒数据")
+
         # 使用data目录下的数据文件，而非插件自身目录
-        data_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))), "astrbot_plugin_remind")
-        # 确保目录存在
+        data_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))),
+                                "astrbot_plugin_remind")
         os.makedirs(os.path.join(data_dir, "remind_data"), exist_ok=True)
         self.data_file = os.path.join(data_dir, "remind_data", "remind_data.json")
 
-        # 加载提醒数据
-        self.reminder_data = load_reminder_data(self.data_file)
+        # 此处数据加载不支持异步
+        self.reminder_data = load_reminder_data(self.data_file, self.postgres_url)
 
-        # 初始化调度器，并传入全员提醒配置
-        self.scheduler_manager = ReminderScheduler(context, self.reminder_data, self.data_file, self.unique_session, self.all_user_reminds)
+        # 初始化调度器
+        self.scheduler_manager = ReminderScheduler(
+            self.context,
+            self.reminder_data,
+            self.data_file,
+            self.postgres_url,
+            self.unique_session,
+            self.all_user_reminds
+        )
 
         # 初始化工具
         self.tools = ReminderTools(self)
+
+        # 初始化提醒系统
+        self.reminder_system = ReminderSystem(
+            self.context,
+            self.config,
+            self.scheduler_manager,
+            self.tools,
+            self.data_file,
+            self.postgres_url
+        )
 
         # 记录配置信息
         logger.info(f"智能提醒插件启动成功，会话隔离：{'启用' if self.unique_session else '禁用'}")
         if self.all_user_reminds:
             logger.info(f"已加载 {len(self.all_user_reminds)} 个全员提醒。")
-
-        # 初始化提醒系统
-        self.reminder_system = ReminderSystem(context, self.config, self.scheduler_manager, self.tools, self.data_file)
 
         self.cd = 10  # 默认冷却时间为 10 秒
         self.last_usage = {}  # 存储每个用户上次使用指令的时间

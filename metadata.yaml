@@ -1,7 +1,11 @@
 name: plugin_remind
-desc: 智能提醒、任务插件
-version: v0.0.1
+desc: 智能提醒、任务插件 (支持PostgreSQL)
+version: v0.0.2
 author: beat4ocean
 
+dependencies:
+  - apscheduler
+  - aiohttp
+  - asyncpg
 
 repo: https://github.com/beat4ocean/astrbot_plugin_remind

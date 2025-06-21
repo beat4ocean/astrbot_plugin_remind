@@ -12,6 +12,7 @@ class ReminderTools:
         self.context = star_instance.context
         self.reminder_data = star_instance.reminder_data
         self.data_file = star_instance.data_file
+        self.postgres_url = star_instance.postgres_url
         self.scheduler_manager = star_instance.scheduler_manager
         self.unique_session = star_instance.unique_session
 
@@ -150,7 +151,7 @@ class ReminderTools:
                 return event.plain_result(f"添加定时任务失败")
 
             # 保存提醒数据
-            if not await save_reminder_data(self.data_file, self.reminder_data):
+            if not await save_reminder_data(self.data_file, self.postgres_url, self.reminder_data):
                 return event.plain_result(f"保存提醒数据失败")
 
             # 构建提示信息
@@ -278,7 +279,7 @@ class ReminderTools:
                 return event.plain_result(f"添加定时任务失败")
 
             # 保存提醒数据
-            if not await save_reminder_data(self.data_file, self.reminder_data):
+            if not await save_reminder_data(self.data_file, self.postgres_url, self.reminder_data):
                 return event.plain_result(f"保存提醒数据失败")
 
             # 构建提示信息
@@ -476,7 +477,7 @@ class ReminderTools:
             # 确保更新到 star_instance
             self.star.reminder_data = self.reminder_data
             # 保存到文件
-            save_result = await save_reminder_data(self.data_file, self.reminder_data)
+            save_result = await save_reminder_data(self.data_file, self.postgres_url, self.reminder_data)
             if not save_result:
                 logger.error("保存提醒数据失败")
                 return "删除提醒失败：无法保存提醒数据"

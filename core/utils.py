@@ -1,10 +1,15 @@
-import datetime
-import json
 import os
+import json
 import re
+import datetime
 import aiohttp
+
 from astrbot.api import logger
-from astrbot.api.star import StarTools
+
+from .database import PostgresManager
+
+# 初始化PostgreSQL管理器
+postgres_manager = None
 
 
 def parse_datetime(datetime_str: str, week: str = None) -> str:
@@ -134,8 +139,54 @@ def is_outdated(reminder: dict) -> bool:
     return False
 
 
-def load_reminder_data(data_file: str) -> dict:
-    '''加载提醒数据'''
+async def init_postgres_manager(postgres_url=None):
+    """初始化PostgreSQL管理器
+    
+    Args:
+        postgres_url: PostgreSQL连接字符串
+    """
+    global postgres_manager
+
+    if postgres_manager is None:
+        postgres_manager = PostgresManager(postgres_url)
+        await postgres_manager.init_pool()
+
+    return postgres_manager
+
+
+async def close_postgres_manager():
+    """关闭PostgreSQL连接池"""
+    global postgres_manager
+
+    if postgres_manager:
+        await postgres_manager.close_pool()
+        postgres_manager = None
+
+
+async def load_reminder_data(data_file: str, postgres_url: str) -> dict:
+    '''加载提醒数据
+    
+    兼容旧版和新版：
+    - 如果设置了postgres_url，从PostgreSQL加载
+    - 否则从本地JSON文件加载
+    '''
+    global postgres_manager
+
+    # 从 postgres 获取数据
+    if postgres_url is not None and postgres_url != "":
+        logger.info("检测到PostgreSQL配置，将异步加载数据")
+        try:
+            if postgres_manager is None:
+                postgres_manager = init_postgres_manager(postgres_url)
+            return postgres_manager.load_reminder_data()
+        except Exception as e:
+            logger.error(f"加载PostgreSQL数据失败: {str(e)}")
+            return {}
+
+    # 从本地JSON文件获取数据
+    return load_json_data(data_file)
+
+def load_json_data(data_file):
     try:
         # 确保数据目录存在
         data_dir = os.path.dirname(data_file)
@@ -180,9 +231,28 @@ def load_reminder_data(data_file: str) -> dict:
         logger.error(f"加载提醒数据失败: {str(e)}")
         return {}
 
+async def save_reminder_data(data_file: str, postgres_url: str, reminder_data: dict) -> bool:
+    '''保存提醒数据
+    
+    兼容旧版和新版：
+    - 如果设置了postgres_url，保存到PostgreSQL
+    - 否则保存到本地JSON文件
+    '''
+    global postgres_manager
 
-async def save_reminder_data(data_file: str, reminder_data: dict) -> bool:
-    '''保存提醒数据'''
+    if postgres_url is not None or postgres_url != "":
+        try:
+            # 如果postgres_manager未初始化，执行初始化
+            if postgres_manager is None:
+                postgres_manager = await init_postgres_manager(postgres_url)
+
+            # 保存到PostgreSQL
+            return await postgres_manager.save_reminder_data(reminder_data)
+        except Exception as e:
+            logger.error(f"保存数据到PostgreSQL失败: {str(e)}")
+            return False
+
+    # 以下是原有的JSON文件保存逻辑
     try:
         # 确保数据目录存在
         data_dir = os.path.dirname(data_file)
@@ -202,6 +272,7 @@ async def save_reminder_data(data_file: str, reminder_data: dict) -> bool:
                 #     else:
                 #         repeat_type = repeat
                 return repeat_type in [None, "none", "不重复"]
+
             reminder_data[group] = [
                 r for r in reminder_data[group]
                 if "datetime" in r and r["datetime"] and not (is_one_time(r) and is_outdated(r))
@@ -231,7 +302,8 @@ async def save_reminder_data(data_file: str, reminder_data: dict) -> bool:
 class HolidayManager:
     def __init__(self):
         # 确保目录存在
-        data_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))), "astrbot_plugin_remind")
+        data_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))),
+                                "astrbot_plugin_remind")
         os.makedirs(os.path.join(data_dir, "holiday_data"), exist_ok=True)
         self.holiday_cache_file = os.path.join(data_dir, "holiday_data", "holiday_cache.json")
         self.holiday_data = self._load_holiday_data()

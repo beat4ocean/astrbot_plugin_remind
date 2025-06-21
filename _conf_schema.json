@@ -6,6 +6,13 @@
     "obvious_hint": true,
     "default": false
   },
+  "postgres_url": {
+    "description": "PostgreSQL数据库连接字符串",
+    "type": "string",
+    "hint": "格式: postgresql://username:password@host:port/database，留空使用本地JSON文件存储",
+    "obvious_hint": true,
+    "default": ""
+  },
   "all_user_reminds": {
     "description": "全员定时提醒功能",
     "type": "list",

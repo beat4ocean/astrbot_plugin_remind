@@ -1,4 +1,5 @@
 import datetime
+import hashlib
 from typing import Union
 from astrbot.api.event import AstrMessageEvent
 from astrbot.api.star import Context
@@ -366,8 +367,10 @@ class ReminderTools:
                             self.reminder_data[key].pop(i)
                             break
 
-            # 删除定时提醒
-            job_id = f"remind_{msg_origin}_{int(index) - 1}"
+            # 删除定时提醒：使用哈希值生成 job_id
+            unique_key = f"{msg_origin}_{to_delete_remind['text']}_{to_delete_remind['date_time']}"
+            job_id = f"remind_{hashlib.md5(unique_key.encode()).hexdigest()}"
+
             try:
                 self.scheduler_manager.remove_job(job_id)
                 logger.info(f"Successfully delete job: {job_id}")

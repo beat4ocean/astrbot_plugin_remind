@@ -1,4 +1,5 @@
 import datetime
+import hashlib
 import json
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from apscheduler.schedulers.base import JobLookupError
@@ -341,9 +342,10 @@ class ReminderScheduler:
                     logger.info(f"跳过已过期的提醒: {reminder['text']}")
                     continue
 
-                # 生成唯一的任务ID，添加时间戳确保唯一性
-                # timestamp = datetime.datetime.now().strftime("%Y%m%d%H%M%S")
-                job_id = f"remind_{msg_origin}_{i}"
+                # 生成唯一的任务ID，使用提醒内容的哈希值确保唯一性
+                unique_key = f"{msg_origin}_{reminder['text']}_{reminder['date_time']}"
+                job_id = f"remind_{hashlib.md5(unique_key.encode()).hexdigest()}"
+
 
                 # 组合判断
                 if repeat_type == "daily" and not holiday_type:
@@ -776,11 +778,9 @@ class ReminderScheduler:
             bool: 是否成功添加任务
         '''
         try:
-            # # 生成唯一的任务ID
-            # job_id = f"remind_{msg_origin}_{len(self.reminder_data.get(msg_origin, [])) - 1}"
-            # 生成唯一的任务ID，添加时间戳确保唯一性
-            # timestamp = datetime.datetime.now().strftime("%Y%m%d%H%M%S")
-            job_id = f"remind_{msg_origin}_{len(self.reminder_data.get(msg_origin, [])) - 1}"
+            # 生成唯一的任务ID，使用提醒内容的哈希值确保唯一性
+            unique_key = f"{msg_origin}_{reminder['text']}_{reminder['date_time']}"
+            job_id = f"remind_{hashlib.md5(unique_key.encode()).hexdigest()}"
 
             repeat_type = reminder.get("repeat_type")
             holiday_type = reminder.get("holiday_type")

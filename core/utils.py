@@ -1,13 +1,12 @@
-import asyncio
-import os
-import json
-import re
 import datetime
+import json
+import os
+import re
+
 import aiohttp
 import psycopg2
-from psycopg2.extras import DictCursor
-
 from astrbot.api import logger
+from psycopg2.extras import DictCursor
 
 from .database import PostgresManager
 
@@ -22,7 +21,7 @@ def parse_datetime(datetime_str: str, week: str = None) -> str:
     这个增强版本支持更灵活的时间输入格式，并提供了更清晰的错误处理。
 
     支持的格式:
-    - 标准格式: "08:20", "8:20"
+    - 标准格式: "08:20", "8:20", "2025-10-01 08:20:00"
     - 无分隔符: "0820", "820" (会补全为 "0820")
     - 中文格式: "8点20", "8点" (无分钟数则默认为0分)
     - 上下午指示: "上午8点20", "下午3点", "晚上8点"
@@ -41,25 +40,24 @@ def parse_datetime(datetime_str: str, week: str = None) -> str:
     """
     try:
         # --- 1. 初始化和预处理 ---
-        today = datetime.datetime.now()
         datetime_str = datetime_str.strip()
 
-        # --- 2. 首先检查是否是完整的日期时间格式 "YYYY-MM-DD HH:MM" ---
-        try:
-            dt = datetime.datetime.strptime(datetime_str, "%Y-%m-%d %H:%M")
-            # 如果日期时间已经过去，则不需要调整
-            if dt > today:
-                return dt.strftime("%Y-%m-%d %H:%M")
-            # 否则继续处理，可能根据week参数调整
-        except ValueError:
-            pass  # 不是完整日期时间格式，继续其他格式的解析
-
-        # --- 3. 解析时间字符串 ---
-        # 优先尝试匹配 "HHMM" 或 "HMM" (如 "820") 格式
+        # --- 2. 解析时间字符串 ---
+        # 尝试匹配 "HHMM" 或 "HMM" (如 "820"、"0820") 格式
         if datetime_str.isdigit() and len(datetime_str) in [3, 4]:
             hhmm_str = datetime_str.zfill(4)  # "820" -> "0820"
             hour = int(hhmm_str[:2])
             minute = int(hhmm_str[2:])
+        # 尝试匹配 "%Y-%m-%d %H:%M" 格式
+        elif ':' in datetime_str and "-" in datetime_str and len(datetime_str) == 16:
+            dt = datetime.datetime.strptime(datetime_str, "%Y-%m-%d %H:%M")
+            hour = dt.hour
+            minute = dt.minute
+        # 尝试匹配 "%Y-%m-%d %H:%M:%S" 格式
+        elif ':' in datetime_str and "-" in datetime_str and len(datetime_str) == 19:
+            dt = datetime.datetime.strptime(datetime_str, "%Y-%m-%d %H:%M:%S")
+            hour = dt.hour
+            minute = dt.minute
         else:
             # 否则，使用正则表达式匹配更复杂的格式
             # 模式解释:
@@ -70,7 +68,7 @@ def parse_datetime(datetime_str: str, week: str = None) -> str:
             pattern = re.compile(
                 r"^(?P<am_pm>早上|上午|下午|晚上|凌晨)?\s*"
                 r"(?P<hour>\d{1,2})\s*"
-                r"(?:[:：点]\s*(?P<minute>\d{1,2}))?\s*$"
+                r"(?:[:：点]\s*(?P<minute>\d{1,2})?)?\s*$"
             )
             match = pattern.match(datetime_str)
 
@@ -80,27 +78,25 @@ def parse_datetime(datetime_str: str, week: str = None) -> str:
             groups = match.groupdict()
             am_pm = groups.get('am_pm')
             hour = int(groups['hour'])
-            minute = int(groups['minute']) if groups['minute'] else 0
+            minute = int(groups['minute']) if groups.get('minute') else 0  # 修改这里
 
-            # --- 4. 根据上午/下午调整小时 ---
+            # --- 3. 根据上午/下午调整小时 ---
             if am_pm in ['下午', '晚上']:
                 if 1 <= hour < 12:
                     hour += 12
             elif am_pm in ['凌晨']:
                 if hour == 12 or hour == 24:
                     hour = 0
-            # elif am_pm in ['早上', '上午']:
-            #     if hour == 12:
-            #         hour = 0
 
-        # --- 5. 验证时间范围 ---
+        # --- 4. 验证时间范围 ---
         if not (0 <= hour <= 23 and 0 <= minute <= 59):
             raise ValueError(f"时间值超出范围: {hour}:{minute}")
 
-        # --- 6. 创建初始 datetime 对象 ---
+        # --- 5. 创建初始 datetime 对象 ---
+        today = datetime.datetime.now()
         dt = today.replace(hour=hour, minute=minute, second=0, microsecond=0)
 
-        # --- 7. 如果指定了星期，计算目标日期 ---
+        # --- 6. 如果指定了星期，计算目标日期 ---
         if week:
             week_map = {
                 '周一': 0, 'mon': 0, 'monday': 0,
@@ -125,12 +121,12 @@ def parse_datetime(datetime_str: str, week: str = None) -> str:
 
             dt += datetime.timedelta(days=days_ahead)
 
-        # --- 8. 如果未指定星期且时间已过，则安排在明天 ---
+        # --- 7. 如果未指定星期且时间已过，则安排在明天 ---
         elif dt <= today:
             dt += datetime.timedelta(days=1)
             logger.info(f"设置的时间已过，自动调整为明天: {dt.strftime('%Y-%m-%d %H:%M')}")
 
-        # --- 9. 返回格式化结果 ---
+        # --- 8. 返回格式化结果 ---
         return dt.strftime("%Y-%m-%d %H:%M")
 
     except (ValueError, TypeError) as e:
@@ -546,3 +542,11 @@ class HolidayManager:
             return False
 
         return True
+
+
+if __name__ == '__main__':
+    datetime_str = "800"
+    # datetime_str = "8：00"
+    # datetime_str = "8:00"
+    # datetime_str = "2024-06-01 08:00"
+    print(parse_datetime(datetime_str))

@@ -18,7 +18,7 @@ from astrbot.core.star.star_handler import star_handlers_registry, EventType
 from .core.reminder import ReminderSystem
 from .core.scheduler import ReminderScheduler
 from .core.tools import ReminderTools
-from .core.utils import first_load_reminder_data
+from .core.utils import load_reminder_data
 
 
 @register("astrbot_plugin_remind", "beat4ocean", "智能提醒、任务插件", "0.0.2")
@@ -55,7 +55,7 @@ class Main(Star):
         self.data_file = os.path.join(data_dir, "remind_data", "remind_data.json")
 
         # 使用同步方法加载数据
-        self.reminder_data = first_load_reminder_data(self.data_file, self.postgres_url)
+        self.reminder_data = load_reminder_data(self.data_file, self.postgres_url)
 
         # 初始化调度器
         self.scheduler_manager = ReminderScheduler(

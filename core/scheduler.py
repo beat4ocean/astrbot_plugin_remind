@@ -342,8 +342,8 @@ class ReminderScheduler:
                     continue
 
                 # 生成唯一的任务ID，添加时间戳确保唯一性
-                timestamp = datetime.datetime.now().strftime("%Y%m%d%H%M%S")
-                job_id = f"remind_{msg_origin}_{i}_{timestamp}"
+                # timestamp = datetime.datetime.now().strftime("%Y%m%d%H%M%S")
+                job_id = f"remind_{msg_origin}_{i}"
 
                 # 组合判断
                 if repeat_type == "daily" and not holiday_type:
@@ -779,8 +779,8 @@ class ReminderScheduler:
             # # 生成唯一的任务ID
             # job_id = f"remind_{msg_origin}_{len(self.reminder_data.get(msg_origin, [])) - 1}"
             # 生成唯一的任务ID，添加时间戳确保唯一性
-            timestamp = datetime.datetime.now().strftime("%Y%m%d%H%M%S")
-            job_id = f"remind_{msg_origin}_{timestamp}"
+            # timestamp = datetime.datetime.now().strftime("%Y%m%d%H%M%S")
+            job_id = f"remind_{msg_origin}_{len(self.reminder_data.get(msg_origin, [])) - 1}"
 
             repeat_type = reminder.get("repeat_type")
             holiday_type = reminder.get("holiday_type")

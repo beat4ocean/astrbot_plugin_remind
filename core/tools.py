@@ -317,10 +317,10 @@ class ReminderTools:
             return f"设置任务时出错：{str(e)}"
 
     async def delete_remind(self, event: AstrMessageEvent, index: str):
-        '''删除符合条件的提醒
+        '''删除符合条件的提醒或任务
         
         Args:
-            index(string): 需要删除的提醒的数字序号,例如：1,2,3
+            index(string): 需要删除的提醒或任务的数字序号,例如：1
         '''
         try:
             # 获取用户ID
@@ -346,12 +346,10 @@ class ReminderTools:
             reminds = []
             for key in self.reminder_data:
                 if key.endswith(f"_{creator_id}") or key == msg_origin:
-                    for i, reminder in enumerate(self.reminder_data[key]):
-                        if reminder["is_task"] == "false":
-                            reminds.extend(self.reminder_data[key])
+                    reminds.extend(self.reminder_data[key])
 
             if not reminds:
-                return "没有设置任何提醒。"
+                return "没有设置任何提醒和任务。"
 
             if int(index) < 1 or int(index) > len(reminds):
                 return "序号无效。"
@@ -372,16 +370,19 @@ class ReminderTools:
             job_id = f"remind_{msg_origin}_{int(index) - 1}"
             try:
                 self.scheduler_manager.remove_job(job_id)
-                logger.info(f"Successfully delete remind job: {job_id}")
+                logger.info(f"Successfully delete job: {job_id}")
             except Exception as e:
                 logger.error(f"Job not found: {job_id}")
 
             # 保存更新后的数据
             await async_save_reminder_data(self.data_file, self.postgres_url, self.reminder_data)
 
+            is_task = to_delete_remind.get("is_task", False)
+            item_type = "任务" if is_task else "提醒"
+
             provider = self.context.get_using_provider()
             if provider:
-                prompt = f"用户删除了一个提醒，内容是'{to_delete_remind['text']}'。请用自然的语言确认删除操作。直接发出对话内容，不要有其他的背景描述。"
+                prompt = f"用户删除了一个{item_type}，内容是'{to_delete_remind['text']}'。请用自然的语言回复删除操作。直接发出对话内容，不要有其他的背景描述。"
                 response = await provider.text_chat(
                     prompt=prompt,
                     session_id=event.session_id,
@@ -389,87 +390,8 @@ class ReminderTools:
                 )
                 return response.completion_text
             else:
-                return f"已删除提醒：{to_delete_remind['text']}"
+                return f"已删除{item_type}：{to_delete_remind['text']}"
 
         except Exception as e:
-            logger.error(f"删除提醒时出错: {str(e)}")
-            return f"删除提醒时出错：{str(e)}"
-
-    async def delete_task(self, event: AstrMessageEvent, index: str):
-        '''删除符合条件的任务
-
-        Args:
-            index(string): 需要删除的任务的数字序号,例如：1,2,3
-        '''
-        try:
-            # 获取用户ID
-            creator_id = None
-            if hasattr(event, 'get_user_id'):
-                creator_id = event.get_user_id()
-            elif hasattr(event, 'get_sender_id'):
-                creator_id = event.get_sender_id()
-            elif hasattr(event, 'sender') and hasattr(event.sender, 'user_id'):
-                creator_id = event.sender.user_id
-            elif hasattr(event.message_obj, 'sender'):
-                creator_id = getattr(event.message_obj.sender, 'user_id', None)
-
-            raw_msg_origin = event.unified_msg_origin
-
-            # 使用 tools.get_session_id 获取正确的会话ID
-            msg_origin = self.get_session_id(raw_msg_origin, creator_id)
-
-            # 重新加载任务数据
-            self.reminder_data = await async_load_reminder_data(self.data_file, self.postgres_url)
-
-            # 获取所有相关的提醒
-            tasks = []
-            for key in self.reminder_data:
-                if key.endswith(f"_{creator_id}") or key == msg_origin:
-                    for i, reminder in enumerate(self.reminder_data[key]):
-                        if reminder["is_task"] == "true":
-                            tasks.extend(self.reminder_data[key])
-
-            if not tasks:
-                return "没有设置任何任务。"
-
-            if int(index) < 1 or int(index) > len(tasks):
-                return "序号无效。"
-
-            # 找到要删除的任务
-            to_delete_task = tasks[int(index) - 1]
-
-            # 从原始数据中删除
-            for key in self.reminder_data:
-                if key.endswith(f"_{creator_id}") or key == msg_origin:
-                    for i, reminder in enumerate(self.reminder_data[key]):
-                        if (reminder['text'] == to_delete_task['text'] and
-                                reminder["date_time"] == to_delete_task["date_time"]):
-                            self.reminder_data[key].pop(i)
-                            break
-
-            # 删除定时任务
-            job_id = f"remind_{msg_origin}_{int(index) - 1}"
-            try:
-                self.scheduler_manager.remove_job(job_id)
-                logger.info(f"Successfully delete task job: {job_id}")
-            except Exception as e:
-                logger.error(f"Job not found: {job_id}")
-
-            # 保存更新后的数据
-            await async_save_reminder_data(self.data_file, self.postgres_url, self.reminder_data)
-
-            provider = self.context.get_using_provider()
-            if provider:
-                prompt = f"用户删除了一个任务，内容是'{to_delete_task['text']}'。请用自然的语言确认删除操作。直接发出对话内容，不要有其他的背景描述。"
-                response = await provider.text_chat(
-                    prompt=prompt,
-                    session_id=event.session_id,
-                    contexts=[]
-                )
-                return response.completion_text
-            else:
-                return f"已删除任务：{to_delete_task['text']}"
-
-        except Exception as e:
-            logger.error(f"删除任务时出错: {str(e)}")
-            return f"删除任务时出错：{str(e)}"
+            logger.error(f"删除提醒或任务时出错: {str(e)}")
+            return f"删除提醒或任务时出错：{str(e)}"

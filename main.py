@@ -97,10 +97,10 @@ class Main(Star):
         pass
 
     @remind.command("列表")
-    async def list_reminds_and_tasks(self, event: AstrMessageEvent):
+    async def list_reminds(self, event: AstrMessageEvent):
         '''列出所有提醒和任务'''
         try:
-            result = await self.reminder_system.list_reminds_and_tasks(event)
+            result = await self.reminder_system.list_reminds(event)
             yield event.plain_result(result)
         except Exception as e:
             logger.error(f"列出提醒或任务时出错: {str(e)}")
@@ -121,9 +121,9 @@ class Main(Star):
         return result
 
     @remind.command("删除")
-    async def remove_reminds_and_tasks(self, event: AstrMessageEvent, index: str):
+    async def remove_reminds(self, event: AstrMessageEvent, index: str):
         '''删除提醒或任务'''
-        result = await self.reminder_system.remove_remind_and_task(event, index)
+        result = await self.reminder_system.remove_reminds(event, index)
         yield event.plain_result(result)
 
     @remind.command("帮助")
@@ -137,29 +137,16 @@ class Main(Star):
     # ========== LLM 开始 ==========
     @filter.llm_tool(name="query_reminds")
     async def query_reminds(self, event: AstrMessageEvent):
-        '''查询所有提醒'''
+        '''查询所有提醒和任务'''
         try:
             # 调用工具类设置提醒
             result = await self.reminder_system.query_reminds(event)
-            logger.info(f"查询提醒结果:\n{result[:50]}...")
+            logger.info(f"查询提醒和任务结果:\n{result[:50]}...")
             return result
 
         except Exception as e:
-            logger.error(f"查询提醒时出错: {str(e)}")
-            return f"查询提醒失败：{str(e)}"
-
-    @filter.llm_tool(name="query_tasks")
-    async def query_tasks(self, event: AstrMessageEvent):
-        '''查询所有任务'''
-        try:
-            # 调用工具类设置提醒
-            result = await self.reminder_system.query_tasks(event)
-            logger.info(f"查询任务结果:\n{result[:50]}...")
-            return result
-
-        except Exception as e:
-            logger.error(f"查询任务时出错: {str(e)}")
-            return f"查询任务失败：{str(e)}"
+            logger.error(f"查询提醒或任务时出错: {str(e)}")
+            return f"查询提醒或任务失败：{str(e)}"
 
     @filter.llm_tool(name="set_remind")
     async def set_remind(self, event: AstrMessageEvent, text: str, date_time: str, repeat_type: str = None,
@@ -209,31 +196,16 @@ class Main(Star):
 
     @filter.llm_tool(name="delete_remind")
     async def delete_remind(self, event: AstrMessageEvent, index: str):
-        '''删除符合条件的提醒
+        '''删除符合条件的提醒或任务
         
         Args:
-            index(string): 需要删除的提醒的数字序号,例如：1,2,3
+            index(string): 需要删除的提醒或任务的数字序号,例如：1
         '''
         try:
             result = await self.tools.delete_remind(event, index)
-            logger.info(f"删除提醒结果:\n{result}")
+            logger.info(f"删除提醒或任务结果:\n{result}")
             return result
         except Exception as e:
-            logger.error(f"删除提醒时出错: {str(e)}")
-            return f"删除提醒失败：{str(e)}"
-
-    @filter.llm_tool(name="delete_task")
-    async def delete_task(self, event: AstrMessageEvent, index: str):
-        '''删除符合条件的任务
-
-        Args:
-            index(string): 需要删除的任务的数字序号,例如：1,2,3
-        '''
-        try:
-            result = await self.tools.delete_task(event, index)
-            logger.info(f"删除任务结果:\n{result}")
-            return result
-        except Exception as e:
-            logger.error(f"删除任务时出错: {str(e)}")
-            return f"删除任务失败：{str(e)}"
+            logger.error(f"删除提醒或任务时出错: {str(e)}")
+            return f"删除提醒或任务失败：{str(e)}"
     # ========== LLM 结束 ==========

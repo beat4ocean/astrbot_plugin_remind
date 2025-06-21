@@ -311,7 +311,7 @@ async def load_reminder_data(data_file: str, postgres_url: str) -> dict:
         try:
             if postgres_manager is None:
                 postgres_manager = init_postgres_manager(postgres_url)
-            return await postgres_manager.load_reminder_data()
+            return postgres_manager.load_reminder_data()
         except Exception as e:
             logger.error(f"加载PostgreSQL数据失败: {str(e)}")
             return {}

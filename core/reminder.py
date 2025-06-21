@@ -1,4 +1,3 @@
-import os
 import datetime
 
 from apscheduler.schedulers.base import JobLookupError
@@ -45,7 +44,7 @@ class ReminderSystem:
             msg_origin = self.tools.get_session_id(event.unified_msg_origin, creator_id)
             # logger.info(f"获取会话ID: {msg_origin}")
 
-            # 重新加载提醒数据
+            # 重新加载提醒数据（不能异步加载，否则会输出 当前没有设置任何提醒或任务 然后 再输出查询结果）
             self.reminder_data = await load_reminder_data(self.data_file, self.postgres_url)
 
             # 获取所有相关的提醒

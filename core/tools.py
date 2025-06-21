@@ -3,7 +3,7 @@ from typing import Union
 from astrbot.api.event import AstrMessageEvent
 from astrbot.api.star import Context
 from astrbot.api import logger
-from .utils import parse_datetime, save_reminder_data
+from .utils import async_save_reminder_data
 
 
 class ReminderTools:
@@ -126,15 +126,16 @@ class ReminderTools:
                 return event.plain_result("节假日类型错误，可选值：workday(仅工作日执行)，holiday(仅法定节假日执行)")
 
             # 处理重复类型和节假日类型的组合
-            final_repeat_type = repeat_type.lower() if repeat_type else "none"
+            repeat_type = repeat_type.lower() if repeat_type else "none"
+            holiday_type = holiday_type.lower() if holiday_type else None
 
             # 构建提醒数据
             reminder = {
                 "text": text,
                 "date_time": date_time,
                 "user_name": user_name,
-                "repeat_type": final_repeat_type,
-                "holiday_type": final_repeat_type,
+                "repeat_type": repeat_type,
+                "holiday_type": holiday_type,
                 "creator_id": creator_id,
                 "creator_name": creator_name,
                 "is_task": False
@@ -150,7 +151,7 @@ class ReminderTools:
                 return event.plain_result(f"添加定时任务失败")
 
             # 保存提醒数据
-            if not await save_reminder_data(self.data_file, self.postgres_url, self.reminder_data):
+            if not await async_save_reminder_data(self.data_file, self.postgres_url, self.reminder_data):
                 return event.plain_result(f"保存提醒数据失败")
 
             # 构建提示信息
@@ -253,16 +254,16 @@ class ReminderTools:
                 return event.plain_result("节假日类型错误，可选值：workday(仅工作日执行)，holiday(仅法定节假日执行)")
 
             # 处理重复类型和节假日类型的组合
-            final_repeat_type = repeat_type.lower() if repeat_type else "none"
-            if repeat_type and holiday_type:
-                final_repeat_type = f"{repeat_type.lower()}_{holiday_type.lower()}"
+            repeat_type = repeat_type.lower() if repeat_type else "none"
+            holiday_type = holiday_type.lower() if holiday_type else None
 
             # 构建任务数据
             task = {
                 "text": text,
                 "date_time": date_time,
                 "user_name": creator_id or "用户",
-                "repeat": final_repeat_type,
+                "repeat_type": repeat_type,
+                "holiday_type": holiday_type,
                 "creator_id": creator_id,
                 "creator_name": creator_name,
                 "is_task": True  # 标记为任务，不是提醒
@@ -278,7 +279,7 @@ class ReminderTools:
                 return event.plain_result(f"添加定时任务失败")
 
             # 保存提醒数据
-            if not await save_reminder_data(self.data_file, self.postgres_url, self.reminder_data):
+            if not await async_save_reminder_data(self.data_file, self.postgres_url, self.reminder_data):
                 return event.plain_result(f"保存提醒数据失败")
 
             # 构建提示信息
@@ -403,7 +404,7 @@ class ReminderTools:
 
                 # 检查星期
                 if weekday:
-                    if reminder.get("repeat") == "weekly":
+                    if reminder.get("repeat_type") == "weekly":
                         # 对于每周重复的任务，检查是否在指定星期执行
                         if dt.weekday() != week_map[weekday.lower()]:
                             match = False
@@ -415,7 +416,7 @@ class ReminderTools:
                 # 检查重复类型
                 if repeat_type:
                     # 获取基础重复类型（去除 holiday_type 部分）
-                    base_repeat = reminder.get("repeat", "").split("_")[0]
+                    base_repeat = reminder.get("repeat_type", "").split("_")[0]
                     if base_repeat.lower() != repeat_type.lower():
                         match = False
 
@@ -476,7 +477,7 @@ class ReminderTools:
             # 确保更新到 star_instance
             self.star.reminder_data = self.reminder_data
             # 保存到文件
-            save_result = await save_reminder_data(self.data_file, self.postgres_url, self.reminder_data)
+            save_result = await async_save_reminder_data(self.data_file, self.postgres_url, self.reminder_data)
             if not save_result:
                 logger.error("保存提醒数据失败")
                 return "删除提醒失败：无法保存提醒数据"

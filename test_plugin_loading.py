@@ -38,10 +38,10 @@ async def main():
         }
         
         # Test saving and loading data
-        success = await db.save_reminder_data(test_data)
+        success = await db.async_save_reminder_data(test_data)
         print(f"Save data result: {success}")
         
-        loaded_data = await db.load_reminder_data()
+        loaded_data = await db.async_load_reminder_data()
         print(f"Loaded data: {loaded_data}")
         
         # Close connections

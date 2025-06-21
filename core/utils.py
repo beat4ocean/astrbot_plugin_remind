@@ -160,7 +160,7 @@ def is_outdated(reminder: dict) -> bool:
 #         postgres_manager = None
 
 
-def first_load_reminder_data(data_file: str, postgres_url: str) -> dict:
+def load_reminder_data(data_file: str, postgres_url: str) -> dict:
     '''首次加载提醒数据：
 
     - 如果设置了postgres_url，从PostgreSQL加载
@@ -171,14 +171,14 @@ def first_load_reminder_data(data_file: str, postgres_url: str) -> dict:
     # 从 postgres 获取数据
     if postgres_url is not None and postgres_url != "":
         logger.info("从PostgreSQL同步加载数据")
-        return first_load_postgres_data(postgres_url)
+        return load_postgres_data(postgres_url)
     else:
         logger.info("从本地JSON文件加载数据")
         # 从本地JSON文件获取数据
         return load_json_data(data_file)
 
 
-def first_load_postgres_data(postgres_url):
+def load_postgres_data(postgres_url):
     result = {}
 
     # 建立数据库连接
@@ -297,7 +297,7 @@ async def init_postgres_manager(postgres_url=None):
     return postgres_manager
 
 
-async def load_reminder_data(data_file: str, postgres_url: str) -> dict:
+async def async_load_reminder_data(data_file: str, postgres_url: str) -> dict:
     '''异步加载提醒数据
 
     - 如果设置了postgres_url，从PostgreSQL加载
@@ -310,8 +310,8 @@ async def load_reminder_data(data_file: str, postgres_url: str) -> dict:
         logger.info("检测到PostgreSQL配置，将异步加载数据")
         try:
             if postgres_manager is None:
-                postgres_manager = init_postgres_manager(postgres_url)
-            return postgres_manager.load_reminder_data()
+                postgres_manager = await init_postgres_manager(postgres_url)
+            return await postgres_manager.load_reminder_data()
         except Exception as e:
             logger.error(f"加载PostgreSQL数据失败: {str(e)}")
             return {}
@@ -320,7 +320,7 @@ async def load_reminder_data(data_file: str, postgres_url: str) -> dict:
     return load_json_data(data_file)
 
 
-async def save_reminder_data(data_file: str, postgres_url: str, reminder_data: dict) -> bool:
+async def async_save_reminder_data(data_file: str, postgres_url: str, reminder_data: dict) -> bool:
     '''保存提醒数据
     
     - 如果设置了postgres_url，保存到PostgreSQL
@@ -335,7 +335,7 @@ async def save_reminder_data(data_file: str, postgres_url: str, reminder_data: d
                 postgres_manager = await init_postgres_manager(postgres_url)
 
             # 保存到PostgreSQL
-            return await postgres_manager.save_reminder_data(reminder_data)
+            return await postgres_manager.async_save_reminder_data(reminder_data)
         except Exception as e:
             logger.error(f"保存数据到PostgreSQL失败: {str(e)}")
             return False

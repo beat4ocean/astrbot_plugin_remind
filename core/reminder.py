@@ -7,7 +7,7 @@ from astrbot.api.star import StarTools
 from astrbot.core.message.message_event_result import MessageChain
 
 from .tools import ReminderTools
-from .utils import load_reminder_data, parse_datetime, save_reminder_data, first_load_reminder_data
+from .utils import async_load_reminder_data, parse_datetime, async_save_reminder_data, load_reminder_data
 
 
 class ReminderSystem:
@@ -18,7 +18,7 @@ class ReminderSystem:
         self.tools = tools
         self.data_file = data_file
         self.postgres_url = postgres_url
-        self.reminder_data = first_load_reminder_data(self.data_file, self.postgres_url)
+        self.reminder_data = load_reminder_data(self.data_file, self.postgres_url)
         self.unique_session = config.get("unique_session", False)
 
         # 确保 tools 属性被正确初始化
@@ -45,7 +45,7 @@ class ReminderSystem:
             # logger.info(f"获取会话ID: {msg_origin}")
 
             # 重新加载提醒数据（不能异步加载，否则会输出 当前没有设置任何提醒或任务 然后 再输出查询结果）
-            self.reminder_data = await load_reminder_data(self.data_file, self.postgres_url)
+            self.reminder_data = await async_load_reminder_data(self.data_file, self.postgres_url)
 
             # 获取所有相关的提醒
             reminders = []
@@ -174,7 +174,7 @@ class ReminderSystem:
             msg_origin = self.tools.get_session_id(raw_msg_origin, creator_id)
 
             # 重新加载提醒数据
-            self.reminder_data = await load_reminder_data(self.data_file, self.postgres_url)
+            self.reminder_data = await async_load_reminder_data(self.data_file, self.postgres_url)
 
             # 获取所有相关的提醒
             reminders = []
@@ -209,7 +209,7 @@ class ReminderSystem:
                 logger.error(f"Job not found: {job_id}")
 
             # 保存更新后的数据
-            await save_reminder_data(self.data_file, self.postgres_url, self.reminder_data)
+            await async_save_reminder_data(self.data_file, self.postgres_url, self.reminder_data)
 
             is_task = removed.get("is_task", False)
             item_type = "任务" if is_task else "提醒"
@@ -336,7 +336,7 @@ class ReminderSystem:
                 return event.plain_result(f"添加定时任务失败")
 
             # 保存提醒数据
-            if not await save_reminder_data(self.data_file, self.postgres_url, self.reminder_data):
+            if not await async_save_reminder_data(self.data_file, self.postgres_url, self.reminder_data):
                 return event.plain_result(f"保存提醒数据失败")
 
             # 生成提示信息

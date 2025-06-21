@@ -301,7 +301,7 @@ class ReminderSystem:
             # 验证重复类型
             repeat_types = ["daily", "weekly", "monthly", "yearly"]
             if repeat_type and repeat_type.lower() not in repeat_types:
-                return event.plain_result("重复类型错误，可选值：daily,weekly,monthly,yearly")
+                return event.plain_result("重复类型错误，可选值：daily(日)，weekly(周)，monthly(月)，yearly(年)，none(不重复)")
 
             # 验证节假日类型
             holiday_types = ["workday", "holiday"]

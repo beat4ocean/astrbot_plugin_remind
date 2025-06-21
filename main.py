@@ -210,7 +210,7 @@ class Main(Star):
             content(string): 可选，提醒内容包含的关键词
             time(string): 可选，具体时间点，格式为 HH:MM，如 "08:00"
             weekday(string): 可选，星期几，可选值：mon,tue,wed,thu,fri,sat,sun
-            repeat_type(string): 可选，重复类型，可选值：daily,weekly,monthly,yearly
+            repeat_type(string): 可选，重复类型，可选值：daily,weekly,monthly,yearly,none
             date(string): 可选，具体日期，格式为 YYYY-MM-DD，如 "2024-02-09"
             all(string): 可选，是否删除所有提醒，可选值：yes/no，默认no
         '''
@@ -231,7 +231,7 @@ class Main(Star):
             content(string): 可选，任务内容包含的关键词
             time(string): 可选，具体时间点，格式为 HH:MM，如 "08:00"
             weekday(string): 可选，星期几，可选值：mon,tue,wed,thu,fri,sat,sun
-            repeat_type(string): 可选，重复类型，可选值：daily,weekly,monthly,yearly
+            repeat_type(string): 可选，重复类型，可选值：daily,weekly,monthly,yearly,none
             date(string): 可选，具体日期，格式为 YYYY-MM-DD，如 "2024-02-09"
             all(string): 可选，是否删除所有任务，可选值：yes/no，默认no
         '''

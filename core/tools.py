@@ -116,9 +116,9 @@ class ReminderTools:
                     holiday_type = parts[1]  # 提取节假日类型
 
             # 验证重复类型
-            repeat_types = ["daily", "weekly", "monthly", "yearly"]
+            repeat_types = ["daily", "weekly", "monthly", "yearly", "none"]
             if repeat_type and repeat_type.lower() not in repeat_types:
-                return event.plain_result("重复类型错误，可选值：daily,weekly,monthly,yearly")
+                return event.plain_result("重复类型错误，可选值：daily(日)，weekly(周)，monthly(月)，yearly(年)，none(不重复)")
 
             # 验证节假日类型
             holiday_types = ["workday", "holiday"]
@@ -127,15 +127,14 @@ class ReminderTools:
 
             # 处理重复类型和节假日类型的组合
             final_repeat_type = repeat_type.lower() if repeat_type else "none"
-            if repeat_type and holiday_type:
-                final_repeat_type = f"{repeat_type.lower()}_{holiday_type.lower()}"
 
             # 构建提醒数据
             reminder = {
                 "text": text,
                 "date_time": date_time,
                 "user_name": user_name,
-                "repeat": final_repeat_type,
+                "repeat_type": final_repeat_type,
+                "holiday_type": final_repeat_type,
                 "creator_id": creator_id,
                 "creator_name": creator_name,
                 "is_task": False
@@ -246,7 +245,7 @@ class ReminderTools:
             # 验证重复类型
             repeat_types = ["daily", "weekly", "monthly", "yearly"]
             if repeat_type and repeat_type.lower() not in repeat_types:
-                return event.plain_result("重复类型错误，可选值：daily,weekly,monthly,yearly")
+                return event.plain_result("重复类型错误，可选值：daily(日)，weekly(周)，monthly(月)，yearly(年)，none(不重复)")
 
             # 验证节假日类型
             holiday_types = ["workday", "holiday"]
@@ -331,7 +330,7 @@ class ReminderTools:
             content(string): 可选，提醒或者任务内容包含的关键词
             time(string): 可选，具体时间点，格式为 HH:MM，如 "08:00"
             weekday(string): 可选，星期几，可选值：mon,tue,wed,thu,fri,sat,sun
-            repeat_type(string): 可选，重复类型，可选值：daily,weekly,monthly,yearly
+            repeat_type(string): 可选，重复类型，可选值：daily,weekly,monthly,yearly,none
             date(string): 可选，具体日期，格式为 YYYY-MM-DD，如 "2024-02-09"
             all(string): 可选，是否删除所有提醒，可选值：yes/no，默认no
             task_only(string): 可选，是否只删除任务，可选值：yes/no，默认no
@@ -369,7 +368,7 @@ class ReminderTools:
             # 验证重复类型
             repeat_types = ["daily", "weekly", "monthly", "yearly"]
             if repeat_type and repeat_type.lower() not in repeat_types:
-                return "重复类型错误，可选值：daily,weekly,monthly,yearly"
+                return "重复类型错误，可选值：daily(日)，weekly(周)，monthly(月)，yearly(年)，none(不重复)"
 
             for i, reminder in enumerate(reminders):
                 dt = datetime.datetime.strptime(reminder["date_time"], "%Y-%m-%d %H:%M")
